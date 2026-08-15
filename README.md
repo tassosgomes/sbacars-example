@@ -81,3 +81,5 @@ Design tokens live in `packages/ui`. The Stitch Design System export failed (401
 | D01 Catálogo e Descoberta | [domains/catalogo-descoberta/domain.md](domains/catalogo-descoberta/domain.md) |
 | D02 Estoque Curado | [domains/estoque-curado/domain.md](domains/estoque-curado/domain.md) |
 | D03 Interesse e Atendimento | [domains/interesse-atendimento/domain.md](domains/interesse-atendimento/domain.md) |
+| D04 Compra Assistida e Financiamento | [domains/compra-assistida/domain.md](domains/compra-assistida/domain.md) |
+| Plano de fundação do backend | [docs/architecture/backend-foundation.md](docs/architecture/backend-foundation.md) |
