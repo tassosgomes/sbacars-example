@@ -11,10 +11,12 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
     <PackageReference Include="Scalar.AspNetCore" />
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\SbaCars.BuildingBlocks.Domain\SbaCars.BuildingBlocks.Domain.csproj" />
+    <ProjectReference Include="..\SbaCars.BuildingBlocks.Application\SbaCars.BuildingBlocks.Application.csproj" />
   </ItemGroup>
 
 </Project>

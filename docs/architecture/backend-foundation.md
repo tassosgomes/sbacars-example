@@ -1039,15 +1039,17 @@ Cada passo termina com algo verificável. Nada de "passo de infraestrutura sem p
 | A4 | Postgres com os quatro schemas, roles e grants; `DbContext` + convenções por serviço; migração inicial vazia; Migrator | Migrator aplica em base limpa; teste prova que `svc_catalog` **não** lê `inventory` | ✅ concluída |
 | A4b | Trilha de auditoria de acesso a dado sensível + sanitização em log/trace/evento (§5.7) | Leitura de registro marcado como sensível gera linha de auditoria; campo marcado não aparece no exportador OTLP | ✅ concluída |
 | A5 | Logto no compose (+ banco `logto` e seed), script de bootstrap idempotente da §5.1, `oidcConfig.ts` repontado; `infra/keycloak/` removido | Base limpa: `compose up` + bootstrap deixam o backoffice logando, e o token traz `aud: https://api.sbacars.app` com os scopes do papel | ✅ concluída |
-| A6 | JwtBearer + default-deny em todos os serviços; `ClaimsTransformation` projetando `scope` em permissões; `ICurrentUser` com permissões | Endpoint protegido: 401 sem token, 403 sem permissão, 200 com permissão. Teste de arquitetura falha se aparecer `[Authorize(Roles=...)]` ou `IsInRole` | ⬜ pendente |
+| A6 | JwtBearer + default-deny em todos os serviços; `ClaimsTransformation` projetando `scope` em permissões; `ICurrentUser` com permissões | Endpoint protegido: 401 sem token, 403 sem permissão, 200 com permissão. Teste de arquitetura falha se aparecer `[Authorize(Roles=...)]` ou `IsInRole` | ✅ concluída |
 | A6b | Ligar `Infrastructure` na DI dos quatro `Api` e fechar a pendência da §5.7: flush da auditoria no fim da requisição | Leitura puramente de leitura, sem `SaveChanges`, gera linha de auditoria — provado por teste | ⬜ pendente |
 | A7 | Gateways YARP: rotas, CORS, rate limit, validação de token no edge de backoffice | Os dois SPAs alcançam o backend pelos ports atuais, sem mudar `runtimeConfig` | ⬜ pendente |
 | A8 | Observabilidade: OTel, health checks, Aspire Dashboard | Requisição do SPA aparece como um trace único atravessando gateway e serviço | ⬜ pendente |
 | A9 | `TestKit`, testes de arquitetura, gate de CI atualizado | Referência de projeto indevida entre serviços quebra o build | ⬜ pendente |
 
-**Estado em 2026-08-15:** A1 a A5 entregues e verificadas — 32 projetos, `dotnet build` e
-`dotnet format` limpos, 81 testes passando. Logto provisionado e com login do backoffice validado
-ponta a ponta; o bootstrap foi executado duas vezes para provar idempotência. `BuildingBlocks.Observability` contém só o mecanismo de
+**Estado em 2026-08-15:** A1 a A6 entregues e verificadas — 33 projetos, `dotnet build` e
+`dotnet format` limpos, 93 testes passando. Logto provisionado e com login do backoffice validado
+ponta a ponta; o bootstrap foi executado duas vezes para provar idempotência. Os quatro `Api` têm
+endpoints de prova (`/api/_probe/whoami`) marcados como andaimes de A6, a remover quando as features
+reais chegarem. `BuildingBlocks.Observability` contém só o mecanismo de
 sanitização; o OpenTelemetry em si é A8. Nada de A4b está ligado aos quatro serviços ainda, o que é
 correto: não existe entidade sensível, e `ICurrentUser`/`IClock` não têm registro concreto de DI até
 A6. O `Migrator` de cada serviço foi verificado à mão contra o Postgres do compose, mas o teste
