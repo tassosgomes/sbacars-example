@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\SbaCars.Inventory.Domain\SbaCars.Inventory.Domain.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Application\SbaCars.BuildingBlocks.Application.csproj" />
+  </ItemGroup>
+</Project>
