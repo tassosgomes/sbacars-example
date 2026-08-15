@@ -383,7 +383,15 @@ descoberta em produção.
 ### 5.1 Configuração do Logto
 
 Tudo abaixo é criado por um **script de bootstrap idempotente** em `infra/logto/`, usando a
-Management API — versionado no repositório, executável em base limpa e seguro de reexecutar:
+Management API — versionado no repositório, executável em base limpa e seguro de reexecutar.
+
+> **Um passo manual é inevitável, por desenho do Logto.** O Logto self-hosted não expõe API para
+> criar a primeira aplicação máquina-a-máquina, porque isso equivaleria a auto-conceder acesso
+> administrativo. Criar essa aplicação e atribuir a ela o papel *Logto Management API access* é feito
+> uma única vez pelo console (`:3002`), e as credenciais vão para `infra/logto/.env`. O passo está
+> documentado em `infra/logto/README.md`. Detalhe que custa tempo: o indicador da Management API é o
+> identificador lógico `https://default.logto.app/api`, **não** a URL do deployment — a documentação
+> do Logto Cloud usa `$TENANT_ENDPOINT/api`, que lá coincide com o indicador e aqui não.
 
 1. **API resource** `https://api.sbacars.app`, com os scopes iguais às permissões da §5.4:
    `estoque:gerenciar`, `estoque:ler`, `catalogo:gerenciar`, `atendimento:gerenciar` e, na Fase 2,
@@ -409,14 +417,17 @@ IdP não participa do particionamento por schema da §4.1 e não deve compartilh
 dados de negócio. **Não usamos o `docker-compose.yml` oficial do Logto**, que embute o próprio
 Postgres e perde os dados a cada recriação.
 
-> **Armadilha de rede que vale antecipar.** A variável `ENDPOINT` do Logto define o *issuer* do
-> token. Se ela for `http://localhost:3001`, o SPA no navegador funciona, mas um serviço rodando em
-> container não alcança `localhost` — e apontar o serviço para `http://logto:3001` faz a validação
-> falhar, porque o issuer do token não bate com a autoridade consultada. A solução limpa é usar um
-> nome que resolva dos dois lados: `ENDPOINT=http://logto:3001`, serviço chamado `logto` no compose
-> e uma entrada `127.0.0.1 logto` no `/etc/hosts` do desenvolvedor. A alternativa, se não quisermos
-> mexer em `/etc/hosts`, é separar `MetadataAddress` (URL interna) de `ValidIssuer` (issuer
-> externo) na configuração do JwtBearer.
+> **Armadilha de rede, resolvida em A5.** A variável `ENDPOINT` do Logto define o *issuer* do token.
+> Com `ENDPOINT=http://localhost:3001` o SPA no navegador funciona, mas um serviço em container não
+> alcança `localhost` — e apontar o serviço para `http://logto:3001` faria a validação falhar,
+> porque o issuer do token não bateria com a autoridade consultada.
+>
+> **Decisão:** `ENDPOINT=http://localhost:3001`, e em A6 os serviços em container configuram
+> `MetadataAddress` com a URL interna (`http://logto:3001/oidc/.well-known/openid-configuration`)
+> enquanto o issuer validado continua o externo, vindo do próprio documento de descoberta. Preferida
+> à alternativa de `ENDPOINT=http://logto:3001` mais `127.0.0.1 logto` no `/etc/hosts` porque não
+> exige preparação de máquina por desenvolvedor e funciona em CI sem etapa extra. Serviço rodando
+> fora de container (F5 na IDE) usa `Authority` direto, sem `MetadataAddress`.
 
 ### 5.2 Validação do JWT nos serviços
 
@@ -1027,14 +1038,16 @@ Cada passo termina com algo verificável. Nada de "passo de infraestrutura sem p
 | A3 | `BuildingBlocks.Web`: ProblemDetails + `IExceptionHandler`, correlation-id, OpenAPI, CORS, rate limit | Erro não tratado devolve ProblemDetails com `traceId`, sem stack | ✅ concluída |
 | A4 | Postgres com os quatro schemas, roles e grants; `DbContext` + convenções por serviço; migração inicial vazia; Migrator | Migrator aplica em base limpa; teste prova que `svc_catalog` **não** lê `inventory` | ✅ concluída |
 | A4b | Trilha de auditoria de acesso a dado sensível + sanitização em log/trace/evento (§5.7) | Leitura de registro marcado como sensível gera linha de auditoria; campo marcado não aparece no exportador OTLP | ✅ concluída |
-| A5 | Logto no compose (+ banco `logto` e seed), script de bootstrap idempotente da §5.1, `oidcConfig.ts` repontado; `infra/keycloak/` removido | Base limpa: `compose up` + bootstrap deixam o backoffice logando, e o token traz `aud: https://api.sbacars.app` com os scopes do papel | ⬜ pendente |
+| A5 | Logto no compose (+ banco `logto` e seed), script de bootstrap idempotente da §5.1, `oidcConfig.ts` repontado; `infra/keycloak/` removido | Base limpa: `compose up` + bootstrap deixam o backoffice logando, e o token traz `aud: https://api.sbacars.app` com os scopes do papel | ✅ concluída |
 | A6 | JwtBearer + default-deny em todos os serviços; `ClaimsTransformation` projetando `scope` em permissões; `ICurrentUser` com permissões | Endpoint protegido: 401 sem token, 403 sem permissão, 200 com permissão. Teste de arquitetura falha se aparecer `[Authorize(Roles=...)]` ou `IsInRole` | ⬜ pendente |
+| A6b | Ligar `Infrastructure` na DI dos quatro `Api` e fechar a pendência da §5.7: flush da auditoria no fim da requisição | Leitura puramente de leitura, sem `SaveChanges`, gera linha de auditoria — provado por teste | ⬜ pendente |
 | A7 | Gateways YARP: rotas, CORS, rate limit, validação de token no edge de backoffice | Os dois SPAs alcançam o backend pelos ports atuais, sem mudar `runtimeConfig` | ⬜ pendente |
 | A8 | Observabilidade: OTel, health checks, Aspire Dashboard | Requisição do SPA aparece como um trace único atravessando gateway e serviço | ⬜ pendente |
 | A9 | `TestKit`, testes de arquitetura, gate de CI atualizado | Referência de projeto indevida entre serviços quebra o build | ⬜ pendente |
 
-**Estado em 2026-08-15:** A1 a A4b entregues e verificadas — 32 projetos, `dotnet build` e
-`dotnet format` limpos, 81 testes passando. `BuildingBlocks.Observability` contém só o mecanismo de
+**Estado em 2026-08-15:** A1 a A5 entregues e verificadas — 32 projetos, `dotnet build` e
+`dotnet format` limpos, 81 testes passando. Logto provisionado e com login do backoffice validado
+ponta a ponta; o bootstrap foi executado duas vezes para provar idempotência. `BuildingBlocks.Observability` contém só o mecanismo de
 sanitização; o OpenTelemetry em si é A8. Nada de A4b está ligado aos quatro serviços ainda, o que é
 correto: não existe entidade sensível, e `ICurrentUser`/`IClock` não têm registro concreto de DI até
 A6. O `Migrator` de cada serviço foi verificado à mão contra o Postgres do compose, mas o teste
@@ -1130,9 +1143,7 @@ delas. Ordem sugerida de features, herdada dos Domain Docs: D02 F01–F06 → D0
 
 - [ ] Confirmar na B1 quantas conexões o Rebus abre por processo; o orçamento da §6.3.1 assume duas,
       e o teto de duas réplicas por serviço depende disso.
-- [ ] Fixar a tag da imagem do Logto e definir a cadência de atualização.
-- [ ] Escolher entre `/etc/hosts` com `logto` ou `MetadataAddress` + `ValidIssuer` separados, para
-      resolver o issuer entre host e container (§5.1). É preferência de time; as duas funcionam.
+- [ ] Definir a cadência de atualização da imagem do Logto (a tag está fixada em `1.42.0`).
 
 **Resolvidas nas revisões 2 a 5:** mensageria (Rebus MIT, §6.1); papéis do realm (§5.2); ambiente
 alvo (Docker Swarm, §11); escopo de D04 na fundação (§3); broker gerenciado (CloudAMQP Loyal
