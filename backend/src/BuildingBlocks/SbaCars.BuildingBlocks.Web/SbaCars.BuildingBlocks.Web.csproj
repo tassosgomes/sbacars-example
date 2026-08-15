@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- Plain Sdk (not Sdk.Web): this is a referenced library, not an entry-point host. The
+         FrameworkReference below gives access to ASP.NET Core types (IExceptionHandler,
+         ProblemDetails, CORS, rate limiting, OpenAPI) without pulling in the Web SDK's
+         static-web-assets pipeline, which a library has no use for. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+    <PackageReference Include="Scalar.AspNetCore" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SbaCars.BuildingBlocks.Domain\SbaCars.BuildingBlocks.Domain.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -6,3 +6,20 @@ coverage/
 .env
 .env.*
 !.env.example
+
+# .NET
+bin/
+obj/
+out/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+[Dd]ebug/
+[Rr]elease/
+publish/
+*.nupkg
+*.snupkg
+TestResults/
+artifacts/
