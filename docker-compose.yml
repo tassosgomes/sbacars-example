@@ -1,4 +1,21 @@
 services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: sbacars
+    ports:
+      - "5432:5432"
+    volumes:
+      - sbacars-postgres-data:/var/lib/postgresql
+      - ./backend/docker/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
   keycloak:
     image: quay.io/keycloak/keycloak:26.3
     command: start-dev --import-realm
@@ -11,3 +28,6 @@ services:
       - "8080:8080"
     volumes:
       - ./infra/keycloak/sbacars-realm.json:/opt/keycloak/data/import/sbacars-realm.json:ro
+
+volumes:
+  sbacars-postgres-data:

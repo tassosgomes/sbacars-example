@@ -583,6 +583,18 @@ pouco agora e são caros de retrofitar depois, então entram na fundação mesmo
 - **Trilha de auditoria de acesso.** Quem leu o dossiê de quem, e quando. Um dado sensível lido sem
   registro é um vazamento que ninguém consegue investigar. A tabela de auditoria e o interceptor que
   a alimenta ficam em `BuildingBlocks.Persistence` desde a Fase A, usados por D03 e, depois, por D04.
+
+  > **Pendência aberta em A4b, a fechar quando os serviços forem ligados (A6/A7).** Auditar leitura
+  > em EF Core exige interceptar a materialização da entidade, e não é possível gravar no banco de
+  > dentro desse ponto — o reader ainda está aberto na conexão. A implementação bufferiza as leituras
+  > por `DbContext` e as grava no próximo `SaveChanges` ou em um flush explícito. Consequência: uma
+  > operação **puramente de leitura** não gera linha de auditoria se ninguém der flush — e abrir a
+  > tela de um dossiê é exatamente isso. O `Repository.FindAsync` faz o flush, mas consulta LINQ ad
+  > hoc fora dele perde o registro. **A correção é um flush no fim da requisição**, aproveitando que
+  > o `DbContext` é scoped: um middleware garante a gravação independentemente de quem escreveu a
+  > consulta. Limitações que permanecem por natureza da abordagem, documentadas no código: projeção
+  > com `Select` anônimo e SQL cru lido como escalar não materializam a entidade e, portanto, nunca
+  > geram auditoria.
 - **Sanitização em log, trace e evento.** A regra "nenhum dado pessoal em log" já existia para D03;
   com CPF e renda ela vira mecanismo, não recomendação: atributo de marcação nos DTOs sensíveis e um
   processador que os remove antes de sair para o exportador OTLP. Vale também para o **payload dos
@@ -1013,17 +1025,20 @@ Cada passo termina com algo verificável. Nada de "passo de infraestrutura sem p
 | A1 | `backend/` com solution, `Directory.Build.props`/`Packages.props`, `.editorconfig`, projeto vazio para os **quatro** serviços | `dotnet build` limpo com warnings-as-errors | ✅ concluída |
 | A2 | `BuildingBlocks.Domain` e `.Application` (Entity, ValueObject, IDomainEvent, IUnitOfWork, IClock, ICurrentUser) | Testes unitários das primitivas passam | ✅ concluída |
 | A3 | `BuildingBlocks.Web`: ProblemDetails + `IExceptionHandler`, correlation-id, OpenAPI, CORS, rate limit | Erro não tratado devolve ProblemDetails com `traceId`, sem stack | ✅ concluída |
-| A4 | Postgres com os quatro schemas, roles e grants; `DbContext` + convenções por serviço; migração inicial vazia; Migrator | Migrator aplica em base limpa; teste prova que `svc_catalog` **não** lê `inventory` | ⬜ pendente |
-| A4b | Trilha de auditoria de acesso a dado sensível + sanitização em log/trace/evento (§5.7) | Leitura de registro marcado como sensível gera linha de auditoria; campo marcado não aparece no exportador OTLP | ⬜ pendente |
+| A4 | Postgres com os quatro schemas, roles e grants; `DbContext` + convenções por serviço; migração inicial vazia; Migrator | Migrator aplica em base limpa; teste prova que `svc_catalog` **não** lê `inventory` | ✅ concluída |
+| A4b | Trilha de auditoria de acesso a dado sensível + sanitização em log/trace/evento (§5.7) | Leitura de registro marcado como sensível gera linha de auditoria; campo marcado não aparece no exportador OTLP | ✅ concluída |
 | A5 | Logto no compose (+ banco `logto` e seed), script de bootstrap idempotente da §5.1, `oidcConfig.ts` repontado; `infra/keycloak/` removido | Base limpa: `compose up` + bootstrap deixam o backoffice logando, e o token traz `aud: https://api.sbacars.app` com os scopes do papel | ⬜ pendente |
 | A6 | JwtBearer + default-deny em todos os serviços; `ClaimsTransformation` projetando `scope` em permissões; `ICurrentUser` com permissões | Endpoint protegido: 401 sem token, 403 sem permissão, 200 com permissão. Teste de arquitetura falha se aparecer `[Authorize(Roles=...)]` ou `IsInRole` | ⬜ pendente |
 | A7 | Gateways YARP: rotas, CORS, rate limit, validação de token no edge de backoffice | Os dois SPAs alcançam o backend pelos ports atuais, sem mudar `runtimeConfig` | ⬜ pendente |
 | A8 | Observabilidade: OTel, health checks, Aspire Dashboard | Requisição do SPA aparece como um trace único atravessando gateway e serviço | ⬜ pendente |
 | A9 | `TestKit`, testes de arquitetura, gate de CI atualizado | Referência de projeto indevida entre serviços quebra o build | ⬜ pendente |
 
-**Estado em 2026-08-15:** A1 a A3 entregues e verificadas — 27 projetos, `dotnet build` e `dotnet format`
-limpos, 71 testes passando. As entregas de A1 a A3 preencheram apenas `BuildingBlocks.Domain`,
-`.Application` e `.Web`; `.Persistence` e `.Observability` continuam vazios, aguardando A4 e A8.
+**Estado em 2026-08-15:** A1 a A4b entregues e verificadas — 32 projetos, `dotnet build` e
+`dotnet format` limpos, 81 testes passando. `BuildingBlocks.Observability` contém só o mecanismo de
+sanitização; o OpenTelemetry em si é A8. Nada de A4b está ligado aos quatro serviços ainda, o que é
+correto: não existe entidade sensível, e `ICurrentUser`/`IClock` não têm registro concreto de DI até
+A6. O `Migrator` de cada serviço foi verificado à mão contra o Postgres do compose, mas o teste
+automatizado chama `MigrateAsync` direto — cobrir o executável no gate fica para A9.
 
 ### Fase B — Mensageria
 
