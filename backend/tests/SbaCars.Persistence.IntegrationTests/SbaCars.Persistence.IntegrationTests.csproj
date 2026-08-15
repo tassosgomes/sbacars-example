@@ -13,12 +13,15 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Npgsql" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Domain\SbaCars.BuildingBlocks.Domain.csproj" />
-    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Application\SbaCars.BuildingBlocks.Application.csproj" />
-    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Observability\SbaCars.BuildingBlocks.Observability.csproj" />
+    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Persistence\SbaCars.BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\Inventory\SbaCars.Inventory.Infrastructure\SbaCars.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Catalog\SbaCars.Catalog.Infrastructure\SbaCars.Catalog.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

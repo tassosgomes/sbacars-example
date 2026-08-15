@@ -3,4 +3,13 @@
     <ProjectReference Include="..\SbaCars.Catalog.Domain\SbaCars.Catalog.Domain.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Persistence\SbaCars.BuildingBlocks.Persistence.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- Design-time only: used by "dotnet ef migrations add" via the service's design-time
+         factory. Never needed at runtime, so it must not flow to anything referencing this
+         project. -->
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
 </Project>
