@@ -1,0 +1,10 @@
+{
+  "projectId": "17038144535006921641",
+  "projectName": "Plataforma AutoTransparência",
+  "designSystemScreenId": "asset-stub-assets_96556faa25c94a73a3b4f741a34ae8f7",
+  "designSystemScreenName": "Design System",
+  "exportStatus": "failed",
+  "exportError": "Stitch API returned 401 UNAUTHENTICATED — no OAuth token or API key available in environment",
+  "tokensSource": "inferred-minimal",
+  "tokensNote": "Tokens in packages/ui were created from project context (transparency/trust automotive) until Stitch export is available"
+}

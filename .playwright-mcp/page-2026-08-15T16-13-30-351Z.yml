@@ -1,0 +1,10 @@
+- generic [ref=f1e3]:
+  - banner [ref=f1e4]:
+    - generic [ref=f1e5]: sbacars
+  - main [ref=f1e6]:
+    - heading "We are sorry..." [level=1] [ref=f1e8]
+    - generic [ref=f1e10]:
+      - paragraph [ref=f1e11]: "Invalid parameter: redirect_uri"
+      - paragraph [ref=f1e12]:
+        - link "« Back to Application" [ref=f1e13] [cursor=pointer]:
+          - /url: http://localhost:5174

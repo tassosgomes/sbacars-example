@@ -1,0 +1,19 @@
+{
+  "name": "sbacars-frontend",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev:catalog": "npm run dev -w @sbacars/catalog",
+    "dev:backoffice": "npm run dev -w @sbacars/backoffice"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

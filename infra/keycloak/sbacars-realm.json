@@ -1,0 +1,91 @@
+{
+  "realm": "sbacars",
+  "enabled": true,
+  "sslRequired": "external",
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": false,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "clients": [
+    {
+      "clientId": "backoffice",
+      "name": "Backoffice",
+      "description": "Backoffice SPA (Authorization Code + PKCE)",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "bearerOnly": false,
+      "consentRequired": false,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "frontchannelLogout": true,
+      "fullScopeAllowed": true,
+      "rootUrl": "http://localhost:5174",
+      "baseUrl": "/",
+      "redirectUris": [
+        "http://localhost:5174/auth/callback",
+        "http://localhost:5174/*",
+        "http://127.0.0.1:5174/auth/callback",
+        "http://127.0.0.1:5174/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5174",
+        "http://127.0.0.1:5174"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "http://localhost:5174/login##http://127.0.0.1:5174/login"
+      },
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "email",
+        "basic"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "ana",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Ana",
+      "lastName": "Operação",
+      "email": "ana@sbacars.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "ana123",
+          "temporary": false
+        }
+      ]
+    },
+    {
+      "username": "bruno",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Bruno",
+      "lastName": "Estoque",
+      "email": "bruno@sbacars.local",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "bruno123",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}
