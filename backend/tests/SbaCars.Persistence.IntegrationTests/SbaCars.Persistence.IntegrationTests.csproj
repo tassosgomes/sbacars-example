@@ -6,6 +6,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Same reasoning as SbaCars.BuildingBlocks.Web.Tests: the SensitiveDataAuditFlushMiddleware
+         tests build a minimal ASP.NET Core host in-process (Microsoft.AspNetCore.TestHost) to
+         exercise BuildingBlocks.Web's middleware against a real Postgres-backed DbContext. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="xunit" />
     <PackageReference Include="xunit.runner.visualstudio">
@@ -15,11 +22,13 @@
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Npgsql" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Domain\SbaCars.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Persistence\SbaCars.BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Web\SbaCars.BuildingBlocks.Web.csproj" />
     <ProjectReference Include="..\..\src\Inventory\SbaCars.Inventory.Infrastructure\SbaCars.Inventory.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Catalog\SbaCars.Catalog.Infrastructure\SbaCars.Catalog.Infrastructure.csproj" />
   </ItemGroup>
