@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 using RabbitMQ.Client;
 using Rebus.Config;
@@ -14,6 +15,7 @@ using Rebus.Retry.Simple;
 using Rebus.Topic;
 using SbaCars.BuildingBlocks.Application;
 using SbaCars.BuildingBlocks.Messaging.CloudEvents;
+using SbaCars.BuildingBlocks.Messaging.Inbox;
 using SbaCars.BuildingBlocks.Messaging.Topology;
 using SbaCars.BuildingBlocks.Messaging.Tracing;
 using SbaCars.BuildingBlocks.Persistence;
@@ -40,9 +42,11 @@ public static class MessagingServiceCollectionExtensions
     /// </param>
     /// <param name="outboxSchema">
     /// When set, enables Rebus's PostgreSQL outbox in this schema (<c>{outboxSchema}.outbox</c>,
-    /// §6.2). Requires <see cref="PersistenceOptions"/> to be registered with a non-empty connection
+    /// §6.2) and the B3 inbox deduplication table (<c>{outboxSchema}.inbox_message</c>, §6.3).
+    /// Requires <see cref="PersistenceOptions"/> to be registered with a non-empty connection
     /// string before this call. When <see langword="null"/>, messaging behaves like B1 — direct
-    /// publish with no outbox forwarder (so RabbitMQ-only integration tests need no Postgres).
+    /// publish with no outbox forwarder and no inbox step (so RabbitMQ-only integration tests need
+    /// no Postgres).
     /// </param>
     public static IServiceCollection AddSbaCarsMessaging(
         this IServiceCollection services,
@@ -61,6 +65,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddRebus((configure, provider) =>
         {
             var options = provider.GetRequiredService<IOptions<MessagingOptions>>().Value;
+            string? persistenceConnectionString = null;
 
             if (outboxSchema is not null)
             {
@@ -72,9 +77,11 @@ public static class MessagingServiceCollectionExtensions
                         "Register persistence options before AddSbaCarsMessaging.");
                 }
 
+                persistenceConnectionString = persistence.ConnectionString;
+
                 configure = configure.Outbox(o =>
                     o.StoreInPostgreSql(
-                        persistence.ConnectionString,
+                        persistenceConnectionString,
                         new TableName(outboxSchema, "outbox")));
             }
 
@@ -139,11 +146,26 @@ public static class MessagingServiceCollectionExtensions
                     // point in the send pipeline where the TransportMessage (and its header
                     // dictionary) exists to be stamped. The incoming step is anchored to run before
                     // DeserializeIncomingMessageStep, so the span is open even if deserialization
-                    // itself fails.
-                    o.Decorate<IPipeline>(c => new PipelineStepInjector(c.Get<IPipeline>())
-                        .OnSend(new CloudEventsOutgoingStep(serviceName), PipelineRelativePosition.After, typeof(SerializeOutgoingMessageStep))
-                        .OnSend(new TracingOutgoingStep(), PipelineRelativePosition.After, typeof(SerializeOutgoingMessageStep))
-                        .OnReceive(new TracingIncomingStep(), PipelineRelativePosition.Before, typeof(DeserializeIncomingMessageStep)));
+                    // itself fails. B3's inbox step runs *after* DeserializeIncomingMessageStep so
+                    // the handler does not run on duplicates, while tracing still wraps the attempt.
+                    o.Decorate<IPipeline>(c =>
+                    {
+                        var injector = new PipelineStepInjector(c.Get<IPipeline>())
+                            .OnSend(new CloudEventsOutgoingStep(serviceName), PipelineRelativePosition.After, typeof(SerializeOutgoingMessageStep))
+                            .OnSend(new TracingOutgoingStep(), PipelineRelativePosition.After, typeof(SerializeOutgoingMessageStep))
+                            .OnReceive(new TracingIncomingStep(), PipelineRelativePosition.Before, typeof(DeserializeIncomingMessageStep));
+
+                        if (outboxSchema is not null)
+                        {
+                            var inboxStore = new NpgsqlInboxStore(persistenceConnectionString!, outboxSchema);
+                            injector = injector.OnReceive(
+                                new InboxDeduplicationIncomingStep(inboxStore, serviceName),
+                                PipelineRelativePosition.After,
+                                typeof(DeserializeIncomingMessageStep));
+                        }
+
+                        return injector;
+                    });
                 });
 
             // No explicit .Logging(...) call here — a deliberate divergence from what a first
@@ -160,6 +182,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddTransient<IIntegrationEventPublisher, RebusIntegrationEventPublisher>();
 
         services.ConfigureOpenTelemetryTracerProvider((_, tracing) => tracing.AddSource(MessagingActivitySource.Name));
+        services.ConfigureOpenTelemetryMeterProvider((_, metrics) => metrics.AddMeter(MessagingMeters.Name));
 
         return services;
     }
