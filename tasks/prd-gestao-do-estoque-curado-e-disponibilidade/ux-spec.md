@@ -476,6 +476,8 @@ Nada de `apps/` foi alterado neste planejamento. Estes itens viram tasks na etap
 | AJ-04 | **Substituir os tokens inferidos pelos do `DESIGN.md`.** Os valores atuais (primária azul `#2563eb`, superfície `#f8fafc`) contradizem o sistema real (primária Deep Navy `#2E2E3A`, ação laranja `#FC8422`, fundo `#f9f9ff`). Inclui a escala tipográfica, `data-tabular` e `label-caps`. | `packages/ui/src/tokens/tokens.css`, `packages/ui/tailwind.preset.ts` | `DESIGN.md` |
 | AJ-05 | Atualizar `.stitch/metadata.json`: `tokensSource` deixa de ser `inferred-minimal` | `.stitch/metadata.json` | `DESIGN.md` |
 | AJ-06 | Criar os componentes compartilhados do §6 | `packages/ui`, `apps/backoffice/src/shared/components` | §6 |
+| AJ-07 | Adicionar `estoque:validar` a `API_SCOPES` — a lista atual tem 4 scopes e não inclui o do Responsável de validação | `apps/backoffice/src/features/auth/config/oidcConfig.ts` | QC-01 do `api-contract.md` |
+| AJ-08 | Esconder o item `Validação` da sidebar para quem não tem `estoque:validar` | `apps/backoffice/src/app/layouts/BackofficeLayout.tsx` | DUX-02 |
 
 **AJ-04 é o mais relevante e o mais silencioso.** Enquanto ele não for feito, o HTML que
 sair do Stitch e o código do backoffice usam paletas diferentes — o Stitch em Deep Navy

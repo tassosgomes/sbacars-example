@@ -1,0 +1,2044 @@
+openapi: 3.1.0
+
+info:
+  title: Estoque Curado e Disponibilidade API
+  description: |
+    API do domínio D02 — Estoque Curado e Disponibilidade. Cobre cadastro de veículos,
+    curadoria da oferta, fatos conhecidos, preço oficial, disponibilidade operacional e
+    elegibilidade para publicação em D01.
+
+    **Contrato gerado a partir de:**
+    `tasks/prd-gestao-do-estoque-curado-e-disponibilidade/prd.md` (RF-01 a RF-06) e
+    `tasks/prd-gestao-do-estoque-curado-e-disponibilidade/ux-spec.md`
+    **Domain doc:** `domains/estoque-curado/domain.md` (RN-01 a RN-10)
+    **Data de geração:** 2026-08-16
+
+    ## Premissas adotadas
+
+    Todas derivadas do código já existente em `backend/`, não inventadas por este contrato.
+
+    - **Autenticação:** JWT Bearer emitido pelo Logto, como em
+      `SbaCars.BuildingBlocks.Web.Auth.AuthExtensions`.
+    - **Autorização:** políticas por permissão, como em
+      `SbaCars.BuildingBlocks.Web.Auth.Permissoes`. Este contrato usa `estoque:ler` e
+      `estoque:gerenciar`, que já existem, e **introduz `estoque:validar`** — ver
+      "Questões em aberto" no `api-contract.md`.
+    - **Paginação:** `page` 1-based e `pageSize` com padrão 20 e máximo 100, espelhando
+      `PagedRequest`/`PagedResult` de `SbaCars.BuildingBlocks.Application`.
+    - **Erros:** RFC 9457 `ProblemDetails` com a extensão `traceId`, exatamente como o
+      `GlobalExceptionHandler` já produz.
+    - **Nomenclatura:** `camelCase` nos campos JSON (padrão do ASP.NET Core), paths no
+      plural, enums em `kebab-case` para casar com o vocabulário do domain doc.
+    - **Versionamento:** sem prefixo de versão no path — o backend já usa `/api/...`
+      direto. Breaking changes serão tratadas por novo path de recurso.
+    - **Valores monetários:** inteiro em **centavos** de BRL, com o sufixo `Centavos` no
+      nome do campo. Escolhido em vez de decimal porque o consumidor é TypeScript, onde
+      `number` é ponto flutuante binário e valores como `87900.10` não são representáveis
+      com exatidão.
+    - **Datas:** ISO 8601 em UTC (`2026-08-16T10:30:00Z`), como o
+      `UtcDateTimeOffsetConverter` já garante na persistência.
+    - **Arrays vazios** retornam `[]`, nunca `null`.
+
+    ## Roteamento
+
+    Os paths deste contrato são relativos ao gateway de backoffice. O
+    `SbaCars.Gateway.Backoffice` já mapeia `/api/inventory/{**rest}` para o
+    inventory-service removendo o prefixo e reaplicando `/api`. Portanto:
+
+    | Consumidor chama (gateway) | inventory-service implementa |
+    |---|---|
+    | `GET /api/inventory/ofertas` | `GET /api/ofertas` |
+    | `POST /api/inventory/solicitacoes/{id}/aprovar` | `POST /api/solicitacoes/{id}/aprovar` |
+
+    ## Eventos publicados
+
+    Fora do escopo HTTP — publicados via Rebus/RabbitMQ como CloudEvents por
+    `SbaCars.BuildingBlocks.Messaging`. Documentados aqui para rastreabilidade:
+    `estoque.oferta-incluida`, `estoque.oferta-atualizada`, `estoque.oferta-retirada`,
+    `estoque.disponibilidade-alterada`.
+  version: 1.0.0
+  contact:
+    name: Operação central — domínio D02
+
+servers:
+  - url: http://localhost:8080/api/inventory
+    description: Desenvolvimento local, via gateway de backoffice
+  - url: https://backoffice.autotransparencia.com.br/api/inventory
+    description: Produção, via gateway de backoffice
+
+security:
+  - BearerAuth: []
+
+tags:
+  - name: Ofertas
+    description: Cadastro, consulta e manutenção das ofertas curadas (RF-01, RF-02)
+  - name: Fatos
+    description: Origem, condição e histórico conhecidos, com fontes e limitações (RF-03)
+  - name: Evidencias
+    description: Upload e leitura de evidências em S3 por URL pré-autenticada (RF-03)
+  - name: Disponibilidade
+    description: Estados operacionais disponível, reservado e vendido (RF-05)
+  - name: Solicitacoes
+    description: Fila de validação de elegibilidade, preço, retirada e reversão (RF-02, RF-04, RF-06)
+  - name: Integracao
+    description: Fornecimento de ofertas elegíveis ao catálogo público D01 (RF-06)
+
+paths:
+  # ─── Ofertas ──────────────────────────────────────────────────────────────
+  /ofertas:
+    get:
+      summary: Listar ofertas do estoque
+      description: |
+        Retorna a lista paginada do estoque curado, com os filtros da tela de estoque.
+        Todos os filtros são combináveis; filtros de lista (`situacao`, `disponibilidade`)
+        aplicam `OR` entre seus valores e `AND` entre si.
+      operationId: listarOfertas
+      tags: [Ofertas]
+      security:
+        - BearerAuth: [estoque:ler]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: busca
+          in: query
+          description: Busca livre por placa, marca ou modelo. Mínimo de 2 caracteres.
+          required: false
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 80
+            examples:
+              - civic
+        - name: situacao
+          in: query
+          description: Filtra por uma ou mais situações da oferta.
+          required: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/SituacaoOferta'
+          explode: true
+        - name: disponibilidade
+          in: query
+          description: Filtra por um ou mais estados de disponibilidade.
+          required: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/EstadoDisponibilidade'
+          explode: true
+        - name: uf
+          in: query
+          description: Sigla da unidade federativa da localização do veículo.
+          required: false
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+            pattern: '^[A-Z]{2}$'
+            examples:
+              - SP
+        - name: ordenarPor
+          in: query
+          description: |
+            Campo e direção de ordenação. Padrão `atualizadoEm:desc`, que é a ordem em que
+            a operação espera ver o que mudou por último.
+          required: false
+          schema:
+            type: string
+            default: atualizadoEm:desc
+            enum:
+              - atualizadoEm:desc
+              - atualizadoEm:asc
+              - precoOficialCentavos:desc
+              - precoOficialCentavos:asc
+              - veiculo:asc
+      responses:
+        '200':
+          description: Página de ofertas retornada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfertaResumoPaginado'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        Aplique debounce de 300ms no campo `busca`. Os chips de situação e os selects de
+        disponibilidade/UF devem entrar na URL como query string, para que a triagem do
+        operador seja compartilhável e sobreviva ao refresh.
+      x-backend-notes: |
+        Índices esperados: `(situacao, atualizadoEm DESC)` para o filtro padrão e um índice
+        trigram sobre placa/marca/modelo para a busca livre. `pendencias` é agregação —
+        resolva por join único, não por consulta por linha.
+
+    post:
+      summary: Cadastrar veículo
+      description: |
+        Cria o veículo e a oferta correspondente. **Aceita dados parciais** — este é o
+        comportamento central do RF-01, não uma exceção. A oferta nasce sempre em
+        `em-preparacao` e nenhum campo de critério mínimo é obrigatório aqui.
+
+        Somente `carro-seminovo` e `carro-usado` são aceitos em `tipoVeiculo` (RN-01);
+        qualquer outro valor resulta em 422.
+      operationId: cadastrarVeiculo
+      tags: [Ofertas]
+      security:
+        - BearerAuth: [estoque:gerenciar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VeiculoInput'
+            examples:
+              cadastroParcial:
+                summary: Cadastro parcial, o caso mais comum
+                value:
+                  placa: ABC1D23
+                  tipoVeiculo: carro-seminovo
+                  marca: Honda
+                  modelo: Civic
+      responses:
+        '201':
+          description: Oferta criada em preparação.
+          headers:
+            Location:
+              description: URI da oferta criada.
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfertaDetalhe'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '409':
+          description: Já existe uma oferta ativa para esta placa.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocioViolada'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        Não bloqueie o submit por campos vazios. Use `criteriosElegibilidade` da resposta
+        para renderizar o contador "N de 6 critérios atendidos" sem recalcular no cliente.
+      x-backend-notes: |
+        Publica `estoque.oferta-incluida`. Índice único parcial sobre placa restrito às
+        situações diferentes de `retirada`, para permitir recadastro após retirada (QA-01).
+
+  /ofertas/{ofertaId}:
+    parameters:
+      - $ref: '#/components/parameters/OfertaId'
+    get:
+      summary: Obter detalhe da oferta
+      description: |
+        Retorna a oferta consolidada: veículo, fatos conhecidos, preço oficial vigente,
+        disponibilidade, checklist de elegibilidade e solicitações pendentes. É a carga
+        única da tela de detalhe — o frontend não deve compor essa tela com várias chamadas.
+      operationId: obterOferta
+      tags: [Ofertas]
+      security:
+        - BearerAuth: [estoque:ler]
+      responses:
+        '200':
+          description: Oferta encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfertaDetalhe'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+    delete:
+      summary: Excluir oferta em preparação
+      description: |
+        Exclui definitivamente uma oferta. Permitido **somente** enquanto a situação for
+        `em-preparacao`. Ofertas que já foram elegíveis são retiradas, nunca excluídas,
+        para preservar o rastro operacional.
+      operationId: excluirOferta
+      tags: [Ofertas]
+      security:
+        - BearerAuth: [estoque:gerenciar]
+      responses:
+        '204':
+          description: Oferta excluída.
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocioViolada'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /ofertas/{ofertaId}/veiculo:
+    parameters:
+      - $ref: '#/components/parameters/OfertaId'
+    patch:
+      summary: Atualizar dados do veículo
+      description: |
+        Atualiza parcialmente os dados do veículo. Campos ausentes no corpo permanecem
+        inalterados; para limpar um campo, envie `null` explicitamente.
+
+        Se a oferta estiver `elegivel` e a alteração fizer com que ela deixe de cumprir um
+        critério mínimo, a elegibilidade é **suspensa automaticamente** (RF-03). O cliente
+        deve confirmar essa consequência enviando `confirmaSuspensao: true`; caso contrário
+        a requisição falha com 409 e nada é alterado.
+      operationId: atualizarVeiculo
+      tags: [Ofertas]
+      security:
+        - BearerAuth: [estoque:gerenciar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VeiculoPatchInput'
+      responses:
+        '200':
+          description: Veículo atualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfertaDetalhe'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          $ref: '#/components/responses/SuspensaoNaoConfirmada'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocioViolada'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        Faça a primeira chamada com `confirmaSuspensao: false`. Se vier 409 com
+        `codigo: suspensao-nao-confirmada`, mostre o diálogo "Salvar e suspender" usando
+        `criteriosAfetados` do corpo do erro, e repita com `true`.
+      x-backend-notes: |
+        Publica `estoque.oferta-atualizada`. A avaliação dos critérios deve rodar na mesma
+        transação da escrita, para que suspensão e alteração sejam atômicas.
+
+  # ─── Fatos conhecidos ─────────────────────────────────────────────────────
+  /ofertas/{ofertaId}/fatos:
+    parameters:
+      - $ref: '#/components/parameters/OfertaId'
+    put:
+      summary: Substituir fatos conhecidos
+      description: |
+        Substitui os três blocos de fatos de uma vez, espelhando o formulário completo da
+        tela. Cada bloco é preenchido **ou** declarado indisponível com uma limitação — não
+        existe terceiro estado válido para uma oferta elegível (RN-03, CM-6).
+
+        Um bloco com `indisponivel: true` exige `limitacaoDeclarada` não vazia e ignora
+        descrição, fonte e evidência. Ausência de dado nunca impede a elegibilidade por si
+        só; ausência de **declaração** impede (DP-03, RN-09).
+
+        Vale a mesma regra de suspensão do PATCH de veículo.
+      operationId: substituirFatos
+      tags: [Fatos]
+      security:
+        - BearerAuth: [estoque:gerenciar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FatosInput'
+            examples:
+              doisPreenchidosUmDeclarado:
+                summary: Origem e condição preenchidas, histórico com limitação declarada
+                value:
+                  confirmaSuspensao: false
+                  origem:
+                    indisponivel: false
+                    descricao: Veículo de frota corporativa, único proprietário pessoa jurídica.
+                    fonte: Contrato de cessão Localiza, 02/2026
+                    evidenciaId: 3f2a8c14-9d31-4c7e-b8a1-5e6f0d2b9c47
+                  condicao:
+                    indisponivel: false
+                    descricao: Revisões em concessionária até 40.000 km.
+                    fonte: Histórico de manutenção Honda
+                    evidenciaId: null
+                  historico:
+                    indisponivel: true
+                    limitacaoDeclarada: >-
+                      Não foi possível obter o histórico de sinistros deste veículo junto
+                      às bases consultadas.
+      responses:
+        '200':
+          description: Fatos substituídos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfertaDetalhe'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          $ref: '#/components/responses/SuspensaoNaoConfirmada'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocioViolada'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-backend-notes: |
+        Publica `estoque.oferta-atualizada`. Evidências referenciadas mas nunca confirmadas
+        no S3 devem ser rejeitadas com 422 — não grave ponteiro para objeto inexistente.
+
+  # ─── Evidências ───────────────────────────────────────────────────────────
+  /ofertas/{ofertaId}/evidencias/upload-url:
+    parameters:
+      - $ref: '#/components/parameters/OfertaId'
+    post:
+      summary: Gerar URL de upload de evidência
+      description: |
+        Devolve uma URL S3 pré-autenticada de escrita. O cliente faz `PUT` direto no S3 com
+        os headers indicados e depois referencia o `evidenciaId` ao salvar os fatos.
+
+        O bucket é privado: o objeto só é acessível por URL assinada, porque evidências de
+        origem podem conter dado pessoal.
+      operationId: gerarUrlUploadEvidencia
+      tags: [Evidencias]
+      security:
+        - BearerAuth: [estoque:gerenciar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadEvidenciaInput'
+      responses:
+        '201':
+          description: URL de upload gerada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadEvidenciaResponse'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '413':
+          description: Arquivo excede o tamanho máximo permitido.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '415':
+          description: Tipo de conteúdo não aceito.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        O `PUT` no S3 vai direto do browser, sem passar pelo backend — não anexe o header
+        `Authorization` nele, apenas os de `headersObrigatorios`. Use o evento de progresso
+        do XHR para a barra; `fetch` não expõe progresso de upload.
+      x-backend-notes: |
+        CORS do bucket precisa liberar `PUT` da origem do backoffice. Valide tipo e tamanho
+        ANTES de assinar — a URL assinada não os revalida no S3.
+
+  /evidencias/{evidenciaId}/download-url:
+    parameters:
+      - name: evidenciaId
+        in: path
+        required: true
+        description: Identificador da evidência.
+        schema:
+          type: string
+          format: uuid
+    get:
+      summary: Gerar URL de leitura de evidência
+      description: |
+        Devolve uma URL S3 pré-autenticada de leitura, de vida curta. Nunca exponha a URL
+        do objeto diretamente nem torne o bucket público.
+      operationId: gerarUrlDownloadEvidencia
+      tags: [Evidencias]
+      security:
+        - BearerAuth: [estoque:ler]
+      responses:
+        '200':
+          description: URL de leitura gerada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DownloadEvidenciaResponse'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        Peça a URL no clique, não ao renderizar a lista de anexos. Ela expira em minutos e
+        gerar em lote desperdiça assinatura.
+
+  # ─── Disponibilidade ──────────────────────────────────────────────────────
+  /ofertas/{ofertaId}/disponibilidade:
+    parameters:
+      - $ref: '#/components/parameters/OfertaId'
+    post:
+      summary: Alterar disponibilidade operacional
+      description: |
+        Aplica uma transição direta de disponibilidade, sem passar pela fila de validação.
+        Transições aceitas aqui:
+
+        | De | Para |
+        |---|---|
+        | `disponivel` | `reservado` |
+        | `disponivel` | `vendido` |
+        | `reservado` | `disponivel` |
+        | `reservado` | `vendido` |
+
+        A transição `vendido` → `disponivel` **não** é aceita aqui: exige validação e passa
+        por `POST /ofertas/{ofertaId}/solicitacoes` com `tipo: reversao-venda` (RF-05).
+
+        Reservas nunca expiram sozinhas — liberar exige esta chamada explícita (DP-04).
+        Alterar disponibilidade não altera a situação da oferta, e retirar a oferta não
+        altera a disponibilidade (RN-05).
+      operationId: alterarDisponibilidade
+      tags: [Disponibilidade]
+      security:
+        - BearerAuth: [estoque:gerenciar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlterarDisponibilidadeInput'
+            examples:
+              registrarReserva:
+                summary: Registrar reserva
+                value:
+                  novoEstado: reservado
+                  observacao: Reserva para test drive agendado no pátio de Campinas.
+      responses:
+        '200':
+          description: Disponibilidade alterada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfertaDetalhe'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocioViolada'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        Derive os botões do card a partir de `disponibilidade.transicoesPermitidas` da
+        resposta de detalhe. Não replique a máquina de estados no cliente.
+      x-backend-notes: |
+        Publica `estoque.disponibilidade-alterada`. Agendamento de test drive por D03 nunca
+        chama este endpoint (RN-08).
+
+  # ─── Solicitações ─────────────────────────────────────────────────────────
+  /ofertas/{ofertaId}/solicitacoes:
+    parameters:
+      - $ref: '#/components/parameters/OfertaId'
+    post:
+      summary: Abrir solicitação de validação
+      description: |
+        Abre uma solicitação pendente. O corpo é discriminado por `tipo`:
+
+        - `elegibilidade` — exige os 6 critérios mínimos atendidos, inclusive preço oficial
+          vigente (RF-04). Também é o caminho para reincluir uma oferta `retirada` (QA-01).
+        - `preco` — exige `novoPrecoCentavos`. O preço vigente continua valendo até a
+          aprovação (RF-04).
+        - `retirada` — ao aprovar, não altera a disponibilidade (RN-05).
+        - `reversao-venda` — só a partir de `vendido`.
+
+        Enquanto houver solicitação pendente do mesmo tipo para a mesma oferta, uma nova
+        é recusada com 409 (DUX-07).
+      operationId: abrirSolicitacao
+      tags: [Solicitacoes]
+      security:
+        - BearerAuth: [estoque:gerenciar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AbrirSolicitacaoInput'
+            examples:
+              elegibilidade:
+                summary: Solicitar elegibilidade
+                value:
+                  tipo: elegibilidade
+                  justificativa: >-
+                    Cadastro completo, laudo de origem anexado e limitação de histórico
+                    declarada.
+              preco:
+                summary: Solicitar alteração de preço
+                value:
+                  tipo: preco
+                  novoPrecoCentavos: 8450000
+                  justificativa: >-
+                    Ajuste para alinhar ao valor de mercado da região após 30 dias sem
+                    manifestações de interesse.
+      responses:
+        '201':
+          description: Solicitação aberta e pendente de validação.
+          headers:
+            Location:
+              description: URI da solicitação criada.
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoDetalhe'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          description: Já existe solicitação pendente deste tipo para esta oferta.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocioViolada'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        Desabilite o botão quando `pendencias` já contiver o tipo, com tooltip explicando —
+        o 409 é rede de segurança, não a experiência esperada.
+
+  /solicitacoes:
+    get:
+      summary: Listar solicitações
+      description: |
+        Fila de validação. Por padrão retorna apenas as pendentes, ordenadas da mais antiga
+        para a mais recente — a ordem em que o SLA de um dia útil deve ser atacado.
+      operationId: listarSolicitacoes
+      tags: [Solicitacoes]
+      security:
+        - BearerAuth: [estoque:validar]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: status
+          in: query
+          description: Filtra por status. Padrão `pendente`.
+          required: false
+          schema:
+            $ref: '#/components/schemas/StatusSolicitacao'
+        - name: tipo
+          in: query
+          description: Filtra por um ou mais tipos de solicitação.
+          required: false
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/TipoSolicitacao'
+          explode: true
+        - name: ordenarPor
+          in: query
+          description: Campo e direção de ordenação.
+          required: false
+          schema:
+            type: string
+            default: abertaEm:asc
+            enum:
+              - abertaEm:asc
+              - abertaEm:desc
+              - decididaEm:desc
+      responses:
+        '200':
+          description: Página de solicitações retornada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoResumoPaginado'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-backend-notes: |
+        `foraDoSla` é calculado no servidor a partir de dias úteis seg–sex, sem calendário
+        de feriados na Fase 1 (QA-05). Não deixe o cliente derivar isso do relógio local.
+
+  /solicitacoes/pendentes/contagem:
+    get:
+      summary: Contar solicitações pendentes
+      description: |
+        Contagem leve para o badge da sidebar. Endpoint dedicado para não obrigar o cliente
+        a paginar a fila inteira só para exibir um número.
+      operationId: contarSolicitacoesPendentes
+      tags: [Solicitacoes]
+      security:
+        - BearerAuth: [estoque:validar]
+      responses:
+        '200':
+          description: Contagem retornada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContagemPendentes'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        Faça polling a cada 60s, ou invalide após qualquer aprovação/rejeição. Não faça
+        polling de segundos — a fila é humana e o SLA é de um dia útil.
+
+  /solicitacoes/{solicitacaoId}:
+    parameters:
+      - $ref: '#/components/parameters/SolicitacaoId'
+    get:
+      summary: Obter detalhe da solicitação
+      description: |
+        Retorna tudo que a decisão exige: comparação entre vigente e proposto, justificativa
+        do solicitante, contexto da oferta e o impacto textual da aprovação.
+      operationId: obterSolicitacao
+      tags: [Solicitacoes]
+      security:
+        - BearerAuth: [estoque:validar]
+      responses:
+        '200':
+          description: Solicitação encontrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoDetalhe'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  /solicitacoes/{solicitacaoId}/aprovar:
+    parameters:
+      - $ref: '#/components/parameters/SolicitacaoId'
+    post:
+      summary: Aprovar solicitação
+      description: |
+        Aprova a solicitação e aplica a alteração correspondente.
+
+        **Quem abriu a solicitação não pode aprová-la** (DUX-08). A regra é do servidor, não
+        da interface: a tentativa retorna 403 mesmo que a UI tenha permitido o clique.
+
+        Para alterações que afetam o catálogo, o evento correspondente é publicado nesta
+        transação, de modo que D01 reflita a mudança em até uma hora.
+      operationId: aprovarSolicitacao
+      tags: [Solicitacoes]
+      security:
+        - BearerAuth: [estoque:validar]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AprovarSolicitacaoInput'
+      responses:
+        '200':
+          description: Solicitação aprovada e alteração aplicada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoDetalhe'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          description: |
+            Sem a permissão `estoque:validar`, ou tentativa de aprovar a própria solicitação.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                autoAprovacao:
+                  summary: Tentativa de aprovar a própria solicitação
+                  value:
+                    type: https://httpstatuses.io/403
+                    title: Aprovação não permitida.
+                    status: 403
+                    detail: Quem abriu a solicitação não pode aprová-la.
+                    instance: /api/solicitacoes/9c1f7e28-4b6a-4d5f-8a09-2c3e5b7d1f40/aprovar
+                    traceId: 0af7651916cd43dd8448eb211c80319c
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          description: Solicitação já decidida.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocioViolada'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-backend-notes: |
+        Publica, conforme o tipo: `estoque.oferta-incluida` (elegibilidade de oferta nova),
+        `estoque.oferta-atualizada` (preço, reelegibilidade), `estoque.oferta-retirada`
+        (retirada) ou `estoque.disponibilidade-alterada` (reversão de venda). Reavalie os
+        critérios mínimos no momento da aprovação — podem ter mudado desde a abertura.
+
+  /solicitacoes/{solicitacaoId}/rejeitar:
+    parameters:
+      - $ref: '#/components/parameters/SolicitacaoId'
+    post:
+      summary: Rejeitar solicitação
+      description: |
+        Rejeita a solicitação. O estado vigente permanece intacto e o motivo volta ao
+        operador (RF-02). A justificativa é obrigatória.
+      operationId: rejeitarSolicitacao
+      tags: [Solicitacoes]
+      security:
+        - BearerAuth: [estoque:validar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejeitarSolicitacaoInput'
+      responses:
+        '200':
+          description: Solicitação rejeitada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolicitacaoDetalhe'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          description: Solicitação já decidida.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocioViolada'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+
+  # ─── Integração com D01 ───────────────────────────────────────────────────
+  /ofertas-elegiveis:
+    get:
+      summary: Listar ofertas elegíveis para D01
+      description: |
+        Fornece ao catálogo público apenas as ofertas em situação `elegivel`, com os fatos,
+        o preço oficial vigente, a localização e a disponibilidade. Ofertas retiradas,
+        suspensas ou em preparação nunca aparecem aqui (RF-06).
+
+        Consumido por catalog-service (D01), não pelo backoffice. Suporta sincronização
+        incremental por `atualizadoApos`, para que D01 reflita mudanças em até uma hora sem
+        varrer o catálogo inteiro.
+      operationId: listarOfertasElegiveis
+      tags: [Integracao]
+      security:
+        - BearerAuth: [estoque:ler]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: atualizadoApos
+          in: query
+          description: Retorna apenas ofertas alteradas após este instante.
+          required: false
+          schema:
+            type: string
+            format: date-time
+            examples:
+              - '2026-08-16T09:00:00Z'
+      responses:
+        '200':
+          description: Página de ofertas elegíveis retornada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfertaElegivelPaginado'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        Não consumido pelo backoffice. O app de catálogo lê de D01, nunca deste endpoint.
+      x-backend-notes: |
+        Este endpoint é a reconciliação; o caminho quente é o evento. D01 deve tratá-lo como
+        fonte de verdade para corrigir divergências, não como polling primário.
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: oauth2
+      description: |
+        Access token JWT emitido pelo Logto, apresentado como `Authorization: Bearer <token>`.
+
+        O fluxo é Authorization Code com PKCE, como o backoffice já faz em
+        `apps/backoffice/src/features/auth/config/oidcConfig.ts`. O indicador de recurso
+        RFC 8707 `https://api.sbacars.app` é obrigatório no pedido de token — sem ele o
+        Logto emite token opaco em vez de JWT com `aud` e `scope` do backend.
+
+        Os scopes chegam ao ASP.NET Core como políticas de autorização por meio de
+        `ScopeClaimsTransformation`, e os nomes abaixo são exatamente os de
+        `SbaCars.BuildingBlocks.Web.Auth.Permissoes`.
+      flows:
+        authorizationCode:
+          authorizationUrl: http://localhost:3001/oidc/auth
+          tokenUrl: http://localhost:3001/oidc/token
+          refreshUrl: http://localhost:3001/oidc/token
+          scopes:
+            estoque:ler: Leitura operacional do estoque curado.
+            estoque:gerenciar: Escrita no estoque — cadastro, fatos, disponibilidade e abertura de solicitações.
+            estoque:validar: Aprovação e rejeição de solicitações na fila de validação.
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      description: Página, 1-based. Valores menores que 1 são normalizados para 1.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+        examples:
+          - 1
+    PageSize:
+      name: pageSize
+      in: query
+      description: Itens por página. Máximo de 100; valores maiores são normalizados.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+        examples:
+          - 20
+    OfertaId:
+      name: ofertaId
+      in: path
+      required: true
+      description: Identificador da oferta curada.
+      schema:
+        type: string
+        format: uuid
+    SolicitacaoId:
+      name: solicitacaoId
+      in: path
+      required: true
+      description: Identificador da solicitação.
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    RequisicaoInvalida:
+      description: Requisição malformada ou parâmetros inválidos.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NaoAutenticado:
+      description: Token ausente, expirado ou inválido.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    SemPermissao:
+      description: Autenticado, mas sem a permissão exigida.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NaoEncontrado:
+      description: Recurso não encontrado.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    RegraDeNegocioViolada:
+      description: |
+        Regra de negócio do domínio violada. Ex.: tipo de veículo fora de carro seminovo ou
+        usado (RN-01), transição de disponibilidade inválida, critério mínimo ausente.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    SuspensaoNaoConfirmada:
+      description: |
+        A alteração suspenderia a elegibilidade e `confirmaSuspensao` não foi enviado como
+        `true`. Nada foi alterado.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemaSuspensao'
+    ErroInterno:
+      description: Erro inesperado. O `traceId` correlaciona com o log do servidor.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+  schemas:
+    # ─── Erros ────────────────────────────────────────────────────────────
+    ProblemDetails:
+      type: object
+      description: |
+        RFC 9457, no formato que o `GlobalExceptionHandler` já emite. O corpo nunca carrega
+        stack trace nem nome de tipo interno.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI que identifica o tipo do problema.
+          examples:
+            - https://httpstatuses.io/422
+        title:
+          type: string
+          description: Resumo legível do tipo do problema.
+          examples:
+            - Regra de negócio violada.
+        status:
+          type: integer
+          description: Código HTTP repetido no corpo.
+          examples:
+            - 422
+        detail:
+          type: [string, 'null']
+          description: Explicação específica desta ocorrência.
+          examples:
+            - Somente carros seminovos ou usados compõem o estoque curado.
+        instance:
+          type: [string, 'null']
+          description: Path da requisição que falhou.
+          examples:
+            - /api/ofertas
+        traceId:
+          type: string
+          description: Trace id W3C, o mesmo gravado no log do servidor.
+          examples:
+            - 0af7651916cd43dd8448eb211c80319c
+
+    ProblemaSuspensao:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          description: ProblemDetails acrescido dos critérios que seriam quebrados.
+          properties:
+            codigo:
+              type: string
+              const: suspensao-nao-confirmada
+              description: Discriminador estável para o cliente reagir sem parsear texto.
+            criteriosAfetados:
+              type: array
+              description: Critérios mínimos que deixariam de ser atendidos.
+              items:
+                $ref: '#/components/schemas/CodigoCriterio'
+
+    # ─── Enums ────────────────────────────────────────────────────────────
+    SituacaoOferta:
+      type: string
+      description: |
+        Situação da oferta na curadoria.
+        - `em-preparacao`: cadastro incompleto, nunca fornecido a D01.
+        - `elegivel`: cumpre os critérios mínimos e é fornecido a D01.
+        - `suspensa`: era elegível e deixou de cumprir um critério; volta só com nova validação.
+        - `retirada`: fora da responsabilidade da operação; não afeta a disponibilidade.
+      enum: [em-preparacao, elegivel, suspensa, retirada]
+      examples:
+        - elegivel
+
+    EstadoDisponibilidade:
+      type: string
+      description: |
+        Estado operacional do veículo.
+        - `disponivel`: pode ser apresentado e reservado.
+        - `reservado`: comprometido; nunca expira automaticamente.
+        - `vendido`: venda concluída; voltar exige validação.
+      enum: [disponivel, reservado, vendido]
+      examples:
+        - disponivel
+
+    TipoSolicitacao:
+      type: string
+      description: |
+        Tipo da alteração que aguarda validação.
+        - `elegibilidade`: tornar a oferta elegível para D01, ou reincluir uma retirada.
+        - `preco`: alterar o preço oficial vigente.
+        - `retirada`: retirar a oferta da curadoria.
+        - `reversao-venda`: devolver uma oferta vendida para disponível.
+      enum: [elegibilidade, preco, retirada, reversao-venda]
+      examples:
+        - preco
+
+    StatusSolicitacao:
+      type: string
+      description: |
+        Ciclo de vida da solicitação.
+        - `pendente`: aguardando decisão; o estado vigente continua valendo.
+        - `aprovada`: decidida e aplicada.
+        - `rejeitada`: decidida sem efeito, com motivo devolvido ao operador.
+      enum: [pendente, aprovada, rejeitada]
+      examples:
+        - pendente
+
+    TipoVeiculo:
+      type: string
+      description: |
+        Categoria aceita no estoque curado. Somente estes dois valores existem nesta fase
+        (RN-01) — motos e demais categorias estão fora do escopo.
+      enum: [carro-seminovo, carro-usado]
+      examples:
+        - carro-seminovo
+
+    CodigoCriterio:
+      type: string
+      description: |
+        Critérios mínimos de elegibilidade.
+        - `identificacao`: placa preenchida.
+        - `dados-basicos`: marca, modelo, versão, ano, quilometragem e câmbio.
+        - `localizacao`: cidade e UF.
+        - `preco-oficial`: existe preço vigente.
+        - `disponibilidade`: estado de disponibilidade definido.
+        - `transparencia-fatos`: cada bloco preenchido ou com limitação declarada.
+      enum:
+        - identificacao
+        - dados-basicos
+        - localizacao
+        - preco-oficial
+        - disponibilidade
+        - transparencia-fatos
+      examples:
+        - transparencia-fatos
+
+    BlocoFatoTipo:
+      type: string
+      description: Bloco de fato conhecido, conforme as entidades do domain doc.
+      enum: [origem, condicao, historico]
+      examples:
+        - historico
+
+    # ─── Valores compartilhados ───────────────────────────────────────────
+    Autoria:
+      type: object
+      description: |
+        Quem alterou e quando. Presente em todo valor sob curadoria, porque a operação
+        precisa ver valor, data e responsável juntos.
+      required: [usuarioId, nome, em]
+      properties:
+        usuarioId:
+          type: string
+          format: uuid
+        nome:
+          type: string
+          examples:
+            - Ana Souza
+        em:
+          type: string
+          format: date-time
+          examples:
+            - '2026-08-12T14:22:05Z'
+
+    Localizacao:
+      type: object
+      properties:
+        cep:
+          type: [string, 'null']
+          pattern: '^\d{5}-?\d{3}$'
+          examples:
+            - 13010-111
+        cidade:
+          type: [string, 'null']
+          examples:
+            - Campinas
+        uf:
+          type: [string, 'null']
+          pattern: '^[A-Z]{2}$'
+          examples:
+            - SP
+
+    # ─── Veículo ──────────────────────────────────────────────────────────
+    Veiculo:
+      type: object
+      description: Dados do carro. Todo campo é opcional enquanto a oferta está em preparação.
+      required: [tipoVeiculo]
+      properties:
+        placa:
+          type: [string, 'null']
+          description: Placa no padrão brasileiro antigo ou Mercosul.
+          pattern: '^[A-Z]{3}-?\d[A-Z0-9]\d{2}$'
+          examples:
+            - ABC1D23
+        chassi:
+          type: [string, 'null']
+          description: VIN de 17 caracteres.
+          examples:
+            - 93HFC2650MZ204817
+        tipoVeiculo:
+          $ref: '#/components/schemas/TipoVeiculo'
+        marca:
+          type: [string, 'null']
+          examples:
+            - Honda
+        modelo:
+          type: [string, 'null']
+          examples:
+            - Civic
+        versao:
+          type: [string, 'null']
+          examples:
+            - EXL 2.0
+        anoFabricacao:
+          type: [integer, 'null']
+          minimum: 1950
+          maximum: 2100
+          examples:
+            - 2021
+        anoModelo:
+          type: [integer, 'null']
+          minimum: 1950
+          maximum: 2100
+          examples:
+            - 2022
+        quilometragem:
+          type: [integer, 'null']
+          minimum: 0
+          examples:
+            - 48300
+        cor:
+          type: [string, 'null']
+          examples:
+            - Prata
+        combustivel:
+          type: [string, 'null']
+          examples:
+            - Flex
+        cambio:
+          type: [string, 'null']
+          examples:
+            - Automático
+        localizacao:
+          $ref: '#/components/schemas/Localizacao'
+
+    VeiculoInput:
+      type: object
+      description: |
+        Corpo de cadastro. Apenas `tipoVeiculo` é obrigatório — os demais campos podem ser
+        completados depois, e sua ausência apenas mantém a oferta em preparação.
+      required: [tipoVeiculo]
+      properties:
+        placa:
+          type: [string, 'null']
+          pattern: '^[A-Z]{3}-?\d[A-Z0-9]\d{2}$'
+        chassi:
+          type: [string, 'null']
+        tipoVeiculo:
+          $ref: '#/components/schemas/TipoVeiculo'
+        marca:
+          type: [string, 'null']
+        modelo:
+          type: [string, 'null']
+        versao:
+          type: [string, 'null']
+        anoFabricacao:
+          type: [integer, 'null']
+          minimum: 1950
+          maximum: 2100
+        anoModelo:
+          type: [integer, 'null']
+          minimum: 1950
+          maximum: 2100
+        quilometragem:
+          type: [integer, 'null']
+          minimum: 0
+        cor:
+          type: [string, 'null']
+        combustivel:
+          type: [string, 'null']
+        cambio:
+          type: [string, 'null']
+        localizacao:
+          $ref: '#/components/schemas/Localizacao'
+
+    VeiculoPatchInput:
+      allOf:
+        - $ref: '#/components/schemas/VeiculoInput'
+        - type: object
+          properties:
+            confirmaSuspensao:
+              type: boolean
+              default: false
+              description: |
+                Confirma ciência de que a alteração suspenderá a elegibilidade. Sem `true`,
+                uma alteração com esse efeito é recusada com 409 e nada é gravado.
+
+    # ─── Fatos conhecidos ─────────────────────────────────────────────────
+    Evidencia:
+      type: object
+      description: Arquivo anexado a um fato, armazenado em bucket privado.
+      required: [evidenciaId, nomeArquivo, tipoConteudo, tamanhoBytes, enviadaEm]
+      properties:
+        evidenciaId:
+          type: string
+          format: uuid
+        nomeArquivo:
+          type: string
+          examples:
+            - contrato-cessao-localiza.pdf
+        tipoConteudo:
+          type: string
+          examples:
+            - application/pdf
+        tamanhoBytes:
+          type: integer
+          minimum: 1
+          examples:
+            - 1258291
+        enviadaEm:
+          type: string
+          format: date-time
+          examples:
+            - '2026-08-10T11:04:33Z'
+
+    BlocoFato:
+      type: object
+      description: |
+        Um bloco de fato conhecido. Ou está preenchido, ou está declarado indisponível com
+        uma limitação. As duas formas são válidas para elegibilidade; a ausência das duas
+        não é (RN-03, CM-6).
+      required: [tipo, indisponivel, atendeTransparencia]
+      properties:
+        tipo:
+          $ref: '#/components/schemas/BlocoFatoTipo'
+        indisponivel:
+          type: boolean
+          description: Quando `true`, a informação não pôde ser obtida e há limitação declarada.
+        descricao:
+          type: [string, 'null']
+          examples:
+            - Veículo de frota corporativa, único proprietário pessoa jurídica.
+        fonte:
+          type: [string, 'null']
+          examples:
+            - Contrato de cessão Localiza, 02/2026
+        evidencia:
+          oneOf:
+            - $ref: '#/components/schemas/Evidencia'
+            - type: 'null'
+        limitacaoDeclarada:
+          type: [string, 'null']
+          description: Obrigatória quando `indisponivel` é `true`. Exibida ao comprador em D01.
+          examples:
+            - Não foi possível obter o histórico de sinistros junto às bases consultadas.
+        atendeTransparencia:
+          type: boolean
+          description: |
+            Conveniência derivada: `true` quando o bloco tem conteúdo ou limitação
+            declarada. Evita que o cliente reimplemente a regra do CM-6.
+        atualizadoPor:
+          oneOf:
+            - $ref: '#/components/schemas/Autoria'
+            - type: 'null'
+
+    BlocoFatoInput:
+      type: object
+      required: [indisponivel]
+      properties:
+        indisponivel:
+          type: boolean
+        descricao:
+          type: [string, 'null']
+          maxLength: 2000
+        fonte:
+          type: [string, 'null']
+          maxLength: 300
+        evidenciaId:
+          type: [string, 'null']
+          format: uuid
+          description: Evidência previamente enviada ao S3.
+        limitacaoDeclarada:
+          type: [string, 'null']
+          maxLength: 1000
+          description: Obrigatória quando `indisponivel` é `true`.
+
+    FatosConhecidos:
+      type: object
+      required: [origem, condicao, historico]
+      properties:
+        origem:
+          $ref: '#/components/schemas/BlocoFato'
+        condicao:
+          $ref: '#/components/schemas/BlocoFato'
+        historico:
+          $ref: '#/components/schemas/BlocoFato'
+
+    FatosInput:
+      type: object
+      required: [origem, condicao, historico]
+      properties:
+        origem:
+          $ref: '#/components/schemas/BlocoFatoInput'
+        condicao:
+          $ref: '#/components/schemas/BlocoFatoInput'
+        historico:
+          $ref: '#/components/schemas/BlocoFatoInput'
+        confirmaSuspensao:
+          type: boolean
+          default: false
+          description: Ver `VeiculoPatchInput.confirmaSuspensao`.
+
+    UploadEvidenciaInput:
+      type: object
+      required: [nomeArquivo, tipoConteudo, tamanhoBytes]
+      properties:
+        nomeArquivo:
+          type: string
+          maxLength: 255
+          examples:
+            - laudo-cautelar.pdf
+        tipoConteudo:
+          type: string
+          description: Tipos aceitos na Fase 1.
+          enum: [application/pdf, image/jpeg, image/png]
+          examples:
+            - application/pdf
+        tamanhoBytes:
+          type: integer
+          minimum: 1
+          maximum: 10485760
+          description: Máximo de 10 MiB.
+          examples:
+            - 4194304
+
+    UploadEvidenciaResponse:
+      type: object
+      required: [evidenciaId, uploadUrl, expiraEm, headersObrigatorios]
+      properties:
+        evidenciaId:
+          type: string
+          format: uuid
+          description: Referencie este id ao salvar os fatos.
+        uploadUrl:
+          type: string
+          format: uri
+          description: URL pré-autenticada para `PUT` direto no S3.
+        expiraEm:
+          type: string
+          format: date-time
+        headersObrigatorios:
+          type: object
+          description: |
+            Headers que o `PUT` no S3 deve enviar exatamente como recebidos; a assinatura
+            os cobre e omiti-los invalida o upload.
+          additionalProperties:
+            type: string
+
+    DownloadEvidenciaResponse:
+      type: object
+      required: [downloadUrl, expiraEm, nomeArquivo]
+      properties:
+        downloadUrl:
+          type: string
+          format: uri
+        expiraEm:
+          type: string
+          format: date-time
+        nomeArquivo:
+          type: string
+
+    # ─── Preço, disponibilidade, elegibilidade ────────────────────────────
+    PrecoOficial:
+      type: object
+      description: |
+        Preço vigente. Enquanto houver solicitação de preço pendente, este valor continua
+        sendo o válido (RF-04).
+      required: [valorCentavos, moeda]
+      properties:
+        valorCentavos:
+          type: integer
+          minimum: 0
+          description: Valor em centavos de BRL. `8790000` equivale a R$ 87.900,00.
+          examples:
+            - 8790000
+        moeda:
+          type: string
+          const: BRL
+        definidoPor:
+          oneOf:
+            - $ref: '#/components/schemas/Autoria'
+            - type: 'null'
+
+    Disponibilidade:
+      type: object
+      required: [estado, desde, transicoesPermitidas]
+      properties:
+        estado:
+          $ref: '#/components/schemas/EstadoDisponibilidade'
+        desde:
+          type: string
+          format: date-time
+        alteradaPor:
+          oneOf:
+            - $ref: '#/components/schemas/Autoria'
+            - type: 'null'
+        transicoesPermitidas:
+          type: array
+          description: |
+            Estados alcançáveis por chamada direta a partir do estado atual. Não inclui
+            `disponivel` quando o estado é `vendido`, porque essa transição exige validação.
+          items:
+            $ref: '#/components/schemas/EstadoDisponibilidade'
+
+    CriterioElegibilidade:
+      type: object
+      required: [codigo, atendido]
+      properties:
+        codigo:
+          $ref: '#/components/schemas/CodigoCriterio'
+        atendido:
+          type: boolean
+        pendencia:
+          type: [string, 'null']
+          description: O que falta, em texto exibível quando `atendido` é `false`.
+          examples:
+            - Condição sem limitação declarada
+
+    ChecklistElegibilidade:
+      type: object
+      required: [atendidos, total, criterios, podeSolicitarElegibilidade]
+      properties:
+        atendidos:
+          type: integer
+          minimum: 0
+          examples:
+            - 5
+        total:
+          type: integer
+          minimum: 1
+          examples:
+            - 6
+        criterios:
+          type: array
+          items:
+            $ref: '#/components/schemas/CriterioElegibilidade'
+        podeSolicitarElegibilidade:
+          type: boolean
+          description: |
+            `true` quando todos os critérios são atendidos e não há solicitação de
+            elegibilidade pendente. É a única fonte para habilitar o botão na interface.
+
+    # ─── Ofertas ──────────────────────────────────────────────────────────
+    PendenciaResumo:
+      type: object
+      required: [solicitacaoId, tipo, abertaEm, abertaPor]
+      properties:
+        solicitacaoId:
+          type: string
+          format: uuid
+        tipo:
+          $ref: '#/components/schemas/TipoSolicitacao'
+        resumoAlteracao:
+          type: [string, 'null']
+          description: Transição em texto, pronta para exibir.
+          examples:
+            - R$ 87.900,00 → R$ 84.500,00
+        abertaEm:
+          type: string
+          format: date-time
+        abertaPor:
+          $ref: '#/components/schemas/Autoria'
+
+    OfertaResumo:
+      type: object
+      description: Linha da lista de estoque.
+      required:
+        [ofertaId, situacao, disponibilidade, pendencias, atualizadoEm]
+      properties:
+        ofertaId:
+          type: string
+          format: uuid
+        placa:
+          type: [string, 'null']
+          examples:
+            - ABC1D23
+        descricaoVeiculo:
+          type: [string, 'null']
+          description: Marca, modelo e versão concatenados para exibição.
+          examples:
+            - Honda Civic EXL 2.0
+        anoFabricacao:
+          type: [integer, 'null']
+          examples:
+            - 2021
+        anoModelo:
+          type: [integer, 'null']
+          examples:
+            - 2022
+        quilometragem:
+          type: [integer, 'null']
+          examples:
+            - 48300
+        localizacao:
+          $ref: '#/components/schemas/Localizacao'
+        precoOficialCentavos:
+          type: [integer, 'null']
+          examples:
+            - 8790000
+        situacao:
+          $ref: '#/components/schemas/SituacaoOferta'
+        disponibilidade:
+          $ref: '#/components/schemas/EstadoDisponibilidade'
+        pendencias:
+          type: array
+          description: Tipos de solicitação pendentes. Vazio quando não há nenhuma.
+          items:
+            $ref: '#/components/schemas/TipoSolicitacao'
+        atualizadoEm:
+          type: string
+          format: date-time
+
+    OfertaDetalhe:
+      type: object
+      description: Carga completa da tela de detalhe da oferta.
+      required:
+        [ofertaId, situacao, veiculo, fatos, disponibilidade, elegibilidade, pendencias, criadaEm, atualizadoEm]
+      properties:
+        ofertaId:
+          type: string
+          format: uuid
+        situacao:
+          $ref: '#/components/schemas/SituacaoOferta'
+        motivoSuspensao:
+          type: [string, 'null']
+          description: Preenchido apenas quando a situação é `suspensa`.
+          examples:
+            - A remoção da fonte do bloco Condição fez a oferta deixar de cumprir os critérios mínimos.
+        suspensaEm:
+          type: [string, 'null']
+          format: date-time
+        veiculo:
+          $ref: '#/components/schemas/Veiculo'
+        fatos:
+          $ref: '#/components/schemas/FatosConhecidos'
+        precoOficial:
+          oneOf:
+            - $ref: '#/components/schemas/PrecoOficial'
+            - type: 'null'
+        disponibilidade:
+          $ref: '#/components/schemas/Disponibilidade'
+        elegibilidade:
+          $ref: '#/components/schemas/ChecklistElegibilidade'
+        pendencias:
+          type: array
+          items:
+            $ref: '#/components/schemas/PendenciaResumo'
+        criadaEm:
+          type: string
+          format: date-time
+        atualizadoEm:
+          type: string
+          format: date-time
+
+    OfertaElegivel:
+      type: object
+      description: |
+        Projeção fornecida a D01. Não expõe solicitações, checklist nem qualquer dado do
+        fluxo interno de validação — apenas o que o catálogo público precisa apresentar.
+      required: [ofertaId, veiculo, fatos, precoOficial, disponibilidade, atualizadoEm]
+      properties:
+        ofertaId:
+          type: string
+          format: uuid
+        veiculo:
+          $ref: '#/components/schemas/Veiculo'
+        fatos:
+          $ref: '#/components/schemas/FatosConhecidos'
+        precoOficial:
+          $ref: '#/components/schemas/PrecoOficial'
+        disponibilidade:
+          $ref: '#/components/schemas/EstadoDisponibilidade'
+        atualizadoEm:
+          type: string
+          format: date-time
+
+    # ─── Solicitações ─────────────────────────────────────────────────────
+    SolicitacaoResumo:
+      type: object
+      description: Linha da fila de validação.
+      required:
+        [solicitacaoId, ofertaId, tipo, status, abertaEm, abertaPor, foraDoSla]
+      properties:
+        solicitacaoId:
+          type: string
+          format: uuid
+        ofertaId:
+          type: string
+          format: uuid
+        placa:
+          type: [string, 'null']
+          examples:
+            - ABC1D23
+        descricaoVeiculo:
+          type: [string, 'null']
+          examples:
+            - Honda Civic EXL 2.0
+        tipo:
+          $ref: '#/components/schemas/TipoSolicitacao'
+        status:
+          $ref: '#/components/schemas/StatusSolicitacao'
+        valorVigente:
+          type: [string, 'null']
+          description: Estado atual em texto exibível.
+          examples:
+            - Em preparação
+        valorProposto:
+          type: [string, 'null']
+          description: Estado proposto em texto exibível.
+          examples:
+            - Elegível
+        abertaEm:
+          type: string
+          format: date-time
+        abertaPor:
+          $ref: '#/components/schemas/Autoria'
+        foraDoSla:
+          type: boolean
+          description: |
+            `true` quando a solicitação está pendente há mais de um dia útil. Calculado no
+            servidor para que a fila não dependa do relógio do cliente.
+
+    SolicitacaoDetalhe:
+      allOf:
+        - $ref: '#/components/schemas/SolicitacaoResumo'
+        - type: object
+          required: [justificativa, impactoAoAprovar]
+          properties:
+            justificativa:
+              type: string
+              description: Texto integral escrito por quem abriu a solicitação.
+              examples:
+                - Cadastro completo, laudo de origem anexado e limitação de histórico declarada.
+            novoPrecoCentavos:
+              type: [integer, 'null']
+              description: Presente somente quando o tipo é `preco`.
+              examples:
+                - 8450000
+            elegibilidadeProposta:
+              oneOf:
+                - $ref: '#/components/schemas/ChecklistElegibilidade'
+                - type: 'null'
+              description: Presente somente quando o tipo é `elegibilidade`.
+            contextoOferta:
+              $ref: '#/components/schemas/ContextoOferta'
+            impactoAoAprovar:
+              type: string
+              description: |
+                Consequência da aprovação em texto pronto para exibir, gerada pelo servidor
+                para que a interface não recomponha a regra.
+              examples:
+                - Ao aprovar, esta oferta passa a ser fornecida ao catálogo público em até 1 hora.
+            decisao:
+              oneOf:
+                - $ref: '#/components/schemas/Decisao'
+                - type: 'null'
+              description: Presente somente quando o status não é `pendente`.
+            podeDecidir:
+              type: boolean
+              description: |
+                `false` quando o usuário autenticado abriu a solicitação. A interface usa
+                isso para desabilitar os botões; o servidor bloqueia de qualquer forma.
+
+    ContextoOferta:
+      type: object
+      description: Resumo somente-leitura da oferta, para decidir sem trocar de tela.
+      required: [situacao, disponibilidade]
+      properties:
+        situacao:
+          $ref: '#/components/schemas/SituacaoOferta'
+        disponibilidade:
+          $ref: '#/components/schemas/EstadoDisponibilidade'
+        precoOficial:
+          oneOf:
+            - $ref: '#/components/schemas/PrecoOficial'
+            - type: 'null'
+        localizacao:
+          $ref: '#/components/schemas/Localizacao'
+        blocosComLimitacao:
+          type: array
+          description: Blocos de fato que estão declarados como indisponíveis.
+          items:
+            $ref: '#/components/schemas/BlocoFatoTipo'
+
+    Decisao:
+      type: object
+      required: [status, decididaEm, decididaPor]
+      properties:
+        status:
+          type: string
+          enum: [aprovada, rejeitada]
+        decididaEm:
+          type: string
+          format: date-time
+        decididaPor:
+          $ref: '#/components/schemas/Autoria'
+        justificativa:
+          type: [string, 'null']
+          description: Obrigatória na rejeição, opcional na aprovação.
+          examples:
+            - Falta declarar a limitação do bloco Condição antes de publicar.
+
+    AbrirSolicitacaoInput:
+      oneOf:
+        - $ref: '#/components/schemas/SolicitacaoElegibilidadeInput'
+        - $ref: '#/components/schemas/SolicitacaoPrecoInput'
+        - $ref: '#/components/schemas/SolicitacaoRetiradaInput'
+        - $ref: '#/components/schemas/SolicitacaoReversaoVendaInput'
+      discriminator:
+        propertyName: tipo
+        mapping:
+          elegibilidade: '#/components/schemas/SolicitacaoElegibilidadeInput'
+          preco: '#/components/schemas/SolicitacaoPrecoInput'
+          retirada: '#/components/schemas/SolicitacaoRetiradaInput'
+          reversao-venda: '#/components/schemas/SolicitacaoReversaoVendaInput'
+
+    SolicitacaoElegibilidadeInput:
+      type: object
+      required: [tipo, justificativa]
+      properties:
+        tipo:
+          type: string
+          const: elegibilidade
+        justificativa:
+          type: string
+          minLength: 1
+          maxLength: 1000
+
+    SolicitacaoPrecoInput:
+      type: object
+      required: [tipo, novoPrecoCentavos, justificativa]
+      properties:
+        tipo:
+          type: string
+          const: preco
+        novoPrecoCentavos:
+          type: integer
+          minimum: 1
+          description: Novo valor em centavos de BRL.
+          examples:
+            - 8450000
+        justificativa:
+          type: string
+          minLength: 1
+          maxLength: 1000
+
+    SolicitacaoRetiradaInput:
+      type: object
+      required: [tipo, justificativa]
+      properties:
+        tipo:
+          type: string
+          const: retirada
+        justificativa:
+          type: string
+          minLength: 1
+          maxLength: 1000
+
+    SolicitacaoReversaoVendaInput:
+      type: object
+      required: [tipo, justificativa]
+      properties:
+        tipo:
+          type: string
+          const: reversao-venda
+        justificativa:
+          type: string
+          minLength: 1
+          maxLength: 1000
+
+    AprovarSolicitacaoInput:
+      type: object
+      properties:
+        observacao:
+          type: [string, 'null']
+          maxLength: 1000
+          description: Comentário opcional do responsável, registrado com a decisão.
+
+    RejeitarSolicitacaoInput:
+      type: object
+      required: [justificativa]
+      properties:
+        justificativa:
+          type: string
+          minLength: 1
+          maxLength: 1000
+          description: |
+            Obrigatória (RF-02). É devolvida ao operador como motivo da rejeição.
+          examples:
+            - Falta declarar a limitação do bloco Condição antes de publicar.
+
+    # ─── Alteração de disponibilidade ─────────────────────────────────────
+    AlterarDisponibilidadeInput:
+      type: object
+      required: [novoEstado]
+      properties:
+        novoEstado:
+          $ref: '#/components/schemas/EstadoDisponibilidade'
+        observacao:
+          type: [string, 'null']
+          maxLength: 1000
+          description: |
+            Contexto opcional da transição. Ao encerrar uma reserva, use-o para registrar o
+            motivo da liberação.
+
+    # ─── Envelopes de paginação ───────────────────────────────────────────
+    PaginacaoBase:
+      type: object
+      description: |
+        Envelope de paginação idêntico ao `PagedResult<T>` já usado no backend, para que a
+        serialização não precise de adaptador.
+      required: [page, pageSize, totalCount, totalPages, hasNextPage, hasPreviousPage]
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          examples:
+            - 1
+        pageSize:
+          type: integer
+          minimum: 1
+          examples:
+            - 20
+        totalCount:
+          type: integer
+          minimum: 0
+          examples:
+            - 142
+        totalPages:
+          type: integer
+          minimum: 0
+          examples:
+            - 8
+        hasNextPage:
+          type: boolean
+        hasPreviousPage:
+          type: boolean
+
+    OfertaResumoPaginado:
+      allOf:
+        - $ref: '#/components/schemas/PaginacaoBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/OfertaResumo'
+
+    SolicitacaoResumoPaginado:
+      allOf:
+        - $ref: '#/components/schemas/PaginacaoBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/SolicitacaoResumo'
+
+    OfertaElegivelPaginado:
+      allOf:
+        - $ref: '#/components/schemas/PaginacaoBase'
+        - type: object
+          required: [items]
+          properties:
+            items:
+              type: array
+              items:
+                $ref: '#/components/schemas/OfertaElegivel'
+
+    ContagemPendentes:
+      type: object
+      required: [total, porTipo, foraDoSla]
+      properties:
+        total:
+          type: integer
+          minimum: 0
+          examples:
+            - 7
+        porTipo:
+          type: object
+          description: Contagem por tipo de solicitação.
+          additionalProperties:
+            type: integer
+            minimum: 0
+        foraDoSla:
+          type: integer
+          minimum: 0
+          description: Quantas das pendentes já passaram de um dia útil.
+          examples:
+            - 2
