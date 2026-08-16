@@ -12,6 +12,7 @@ using SbaCars.BuildingBlocks.Application;
 using SbaCars.BuildingBlocks.Persistence;
 using SbaCars.BuildingBlocks.Persistence.Auditing;
 using SbaCars.BuildingBlocks.Web.Auditing;
+using SbaCars.TestKit;
 using Xunit;
 
 namespace SbaCars.Persistence.IntegrationTests.Auditing;
@@ -28,13 +29,11 @@ namespace SbaCars.Persistence.IntegrationTests.Auditing;
 /// </summary>
 public sealed class SensitiveDataAuditFlushMiddlewareTests : IClassFixture<SbaCarsPostgresFixture>, IAsyncLifetime
 {
-    // Deliberately the same schema SensitiveDataAuditTests uses for this very same
-    // AuditingProbeDbContext type: EF Core's default model cache key is keyed by DbContext CLR
-    // type alone (not by the runtime `schema` constructor argument each test passes in), so two
-    // test classes racing to build that type's model with *different* schema strings can hand
-    // each other the wrong compiled model — surfacing as a spurious "permission denied for schema
-    // X" once xUnit runs both classes concurrently (they are unrelated, unordered collections).
-    // Matching the schema removes the race instead of fighting it.
+    // Same schema SensitiveDataAuditTests uses for this very same AuditingProbeDbContext type —
+    // no longer load-bearing since A9's SchemaAwareModelCacheKeyFactory keys the compiled-model
+    // cache by schema as well as CLR type (see ModelCacheKeyFactoryTests for the regression proof
+    // with two distinct schemas). Left matching anyway: there is no reason for this class to pick
+    // a different one, and it keeps both classes' seeded data in the same schema.
     private const string Schema = "catalog";
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);

@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SbaCars.BuildingBlocks.Persistence;
+using SbaCars.TestKit;
 using Xunit;
 
 namespace SbaCars.Persistence.IntegrationTests;

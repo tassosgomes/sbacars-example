@@ -32,6 +32,9 @@
          a test-project reference only — SbaCars.BuildingBlocks.Observability itself still has no
          dependency on .Web. -->
     <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Web\SbaCars.BuildingBlocks.Web.csproj" />
+    <!-- A9 — TestHostFactory, consolidated into SbaCars.TestKit (was a byte-for-byte duplicate of
+         SbaCars.BuildingBlocks.Web.Tests' own copy). -->
+    <ProjectReference Include="..\SbaCars.TestKit\SbaCars.TestKit.csproj" />
   </ItemGroup>
 
 </Project>

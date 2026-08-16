@@ -20,7 +20,9 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="AwesomeAssertions" />
-    <PackageReference Include="Testcontainers.PostgreSql" />
+    <!-- Testcontainers.PostgreSql flows transitively from SbaCars.TestKit below (only
+         SbaCarsPostgresFixture uses it directly since A9); Npgsql/TestHost stay explicit because
+         this project's own tests still construct NpgsqlConnection and a TestServer host directly. -->
     <PackageReference Include="Npgsql" />
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
   </ItemGroup>
@@ -31,6 +33,8 @@
     <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Web\SbaCars.BuildingBlocks.Web.csproj" />
     <ProjectReference Include="..\..\src\Inventory\SbaCars.Inventory.Infrastructure\SbaCars.Inventory.Infrastructure.csproj" />
     <ProjectReference Include="..\..\src\Catalog\SbaCars.Catalog.Infrastructure\SbaCars.Catalog.Infrastructure.csproj" />
+    <!-- A9 — SbaCarsPostgresFixture/SbaCarsPostgresCollection, moved into SbaCars.TestKit. -->
+    <ProjectReference Include="..\SbaCars.TestKit\SbaCars.TestKit.csproj" />
   </ItemGroup>
 
 </Project>

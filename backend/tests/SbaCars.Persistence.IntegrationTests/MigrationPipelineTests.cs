@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Npgsql;
 using SbaCars.BuildingBlocks.Persistence;
 using SbaCars.Inventory.Infrastructure;
+using SbaCars.TestKit;
 using Xunit;
 
 namespace SbaCars.Persistence.IntegrationTests;
