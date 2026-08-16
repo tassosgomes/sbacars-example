@@ -2,4 +2,12 @@
   <ItemGroup>
     <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Web\SbaCars.BuildingBlocks.Web.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\SbaCars.Gateway.Shared\SbaCars.Gateway.Shared.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- SbaCars.Gateway.Tests drives this host through WebApplicationFactory<Program>, which
+         needs the compiler-generated top-level-statements Program class (internal by default). -->
+    <InternalsVisibleTo Include="SbaCars.Gateway.Tests" />
+  </ItemGroup>
 </Project>

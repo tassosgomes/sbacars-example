@@ -211,7 +211,8 @@ backend/
 │   │   └── SbaCars.Contracts/       # eventos de integração, namespaces .V1
 │   ├── Gateways/
 │   │   ├── SbaCars.Gateway.Public/
-│   │   └── SbaCars.Gateway.Backoffice/
+│   │   ├── SbaCars.Gateway.Backoffice/
+│   │   └── SbaCars.Gateway.Shared/     # fiação YARP comum aos dois edges — ver §3.3
 │   ├── Inventory/
 │   │   ├── SbaCars.Inventory.Api/
 │   │   ├── SbaCars.Inventory.Application/
@@ -267,6 +268,15 @@ o Domain Doc é que está desatualizado.
 
 **Regra:** nada específico de domínio entra em BuildingBlocks, e nada é extraído para lá antes do
 **segundo** serviço precisar. BuildingBlocks que vira framework é dívida, não fundação.
+
+**A regra tem um segundo lado, descoberto na A7:** dois consumidores justificam extrair o código,
+mas não justificam extrair para BuildingBlocks. A fiação do YARP tem exatamente dois consumidores —
+os dois gateways — e a primeira versão da A7 a colocou em `.Web`. Como os quatro `Api` referenciam
+`.Web`, todos passaram a carregar `Yarp.ReverseProxy`: um serviço de domínio empacotando a
+maquinaria de chamar outro serviço, que é o que a §2.4 proíbe. A extração correta é lateral —
+`SbaCars.Gateway.Shared`, ao lado dos seus dois únicos consumidores — e a linha do `.Web` na tabela
+acima é a lista fechada do que entra ali, não uma sugestão. Um teste de arquitetura
+(`ReverseProxyContainmentTests`) falha o build se o pacote reaparecer fora de `src/Gateways/`.
 
 **A motivação não é evitar repetição, é garantir comportamento idêntico.** Quatro serviços devem
 responder o mesmo ProblemDetails, validar o mesmo token, gravar o outbox do mesmo jeito e emitir o
@@ -1061,7 +1071,7 @@ Cada passo termina com algo verificável. Nada de "passo de infraestrutura sem p
 | A5 | Logto no compose (+ banco `logto` e seed), script de bootstrap idempotente da §5.1, `oidcConfig.ts` repontado; `infra/keycloak/` removido | Base limpa: `compose up` + bootstrap deixam o backoffice logando, e o token traz `aud: https://api.sbacars.app` com os scopes do papel | ✅ concluída |
 | A6 | JwtBearer + default-deny em todos os serviços; `ClaimsTransformation` projetando `scope` em permissões; `ICurrentUser` com permissões | Endpoint protegido: 401 sem token, 403 sem permissão, 200 com permissão. Teste de arquitetura falha se aparecer `[Authorize(Roles=...)]` ou `IsInRole` | ✅ concluída |
 | A6b | Ligar `Infrastructure` na DI dos quatro `Api` e fechar a pendência da §5.7: flush da auditoria no fim da requisição | Leitura puramente de leitura, sem `SaveChanges`, gera linha de auditoria — provado por teste | ✅ concluída |
-| A7 | Gateways YARP: rotas, CORS, rate limit, validação de token no edge de backoffice | Os dois SPAs alcançam o backend pelos ports atuais, sem mudar `runtimeConfig` | ⬜ pendente |
+| A7 | Gateways YARP: rotas, CORS, rate limit, validação de token no edge de backoffice | Os dois SPAs alcançam o backend pelos ports atuais, sem mudar `runtimeConfig` | ✅ concluída |
 | A8 | Observabilidade: OTel, health checks, Aspire Dashboard | Requisição do SPA aparece como um trace único atravessando gateway e serviço | ⬜ pendente |
 | A9 | `TestKit`, testes de arquitetura, gate de CI atualizado | Referência de projeto indevida entre serviços quebra o build | ⬜ pendente |
 
@@ -1072,8 +1082,8 @@ indexado pelo tipo CLR, então dois testes paralelos com schemas diferentes sobr
 disputam o modelo compilado. A6b contornou usando o mesmo schema nos dois, o que resolve hoje e
 volta a quebrar no primeiro teste que precisar de outro.
 
-**Estado em 2026-08-15:** A1 a A6b entregues e verificadas — 33 projetos, `dotnet build` e
-`dotnet format` limpos, 97 testes passando. Logto provisionado e com login do backoffice validado
+**Estado em 2026-08-15:** A1 a A7 entregues e verificadas — 35 projetos, `dotnet build` e
+`dotnet format` limpos, 114 testes passando. Logto provisionado e com login do backoffice validado
 ponta a ponta; o bootstrap foi executado duas vezes para provar idempotência. Os quatro `Api` têm
 endpoints de prova (`/api/_probe/whoami`) marcados como andaimes de A6, a remover quando as features
 reais chegarem. `BuildingBlocks.Observability` contém só o mecanismo de
@@ -1090,6 +1100,28 @@ serviços reais (só nos testes), porque nada nos quatro serviços o resolve ain
 interceptor no dia em que um deles precisar. O `Migrator` de cada serviço foi verificado à mão
 contra o Postgres do compose, mas o teste automatizado chama `MigrateAsync` direto — cobrir o
 executável no gate fica para A9.
+
+A7 ligou YARP nos dois gateways sobre o pipeline que já existia. Convenção de path única para os
+dois edges: `/api/<serviço>/{**rest}` no gateway vira `/api/{**rest}` no serviço, via
+`PathRemovePrefix`/`PathPrefix` — o gateway é dono do mapa de path público, o serviço não sabe em
+qual edge está publicado. O `gateway-public` só tem rota para `catalog` (métodos `GET`/`HEAD`/
+`OPTIONS`) e `interest` (`POST`/`OPTIONS`, com `RateLimiterPolicy` = `sbacars-anonymous-strict`) —
+nunca `inventory` nem `purchase`, e isso é verificado por teste de tabela de rotas, não só por
+convenção. O `gateway-backoffice` tem rota para os quatro serviços, todos os métodos, cada uma com
+`AuthorizationPolicy: "Default"` explícito — redundante com o `FallbackPolicy` que `AddSbaCarsAuth`
+já registra, de propósito. Cada cluster define `HttpRequest.ActivityTimeout` explicitamente (30s)
+em `appsettings.json`; os `Destinations` ficam só em `appsettings.Development.json`, e uma
+validação de boot (`ReverseProxyExtensions.UseSbaCarsReverseProxy`, em `SbaCars.Gateway.Shared`)
+lança se alguma rota apontar para um cluster inexistente ou se um cluster referenciado por rota
+ficar sem destino — sem isso, um ambiente mal configurado degradaria em 503 silencioso em vez de
+falhar no boot. Essa fiação nasceu em `BuildingBlocks.Web` e foi movida para um projeto próprio ao
+lado dos gateways: por `.Web`, os quatro `Api` passavam a carregar `Yarp.ReverseProxy` (ver §3.3).
+Catalog e interest ganharam `/api/_probe/ping` `[AllowAnonymous]`, andaime de A7 para provar a rota
+pública fim a fim, path reescrito incluso, a remover quando a feature real chegar — `GET` no
+catalog e `POST` no interest, cada um no método que o seu edge de fato roteia; inventory e purchase
+não foram tocados. O rate limit continua em memória por processo — D6 é quem
+troca por contador no Redis quando houver mais de uma réplica; nada nessa entrega mudou isso. OTel,
+health checks e Redis ficam fora, são A8 e D6.
 
 ### Fase B — Mensageria
 
