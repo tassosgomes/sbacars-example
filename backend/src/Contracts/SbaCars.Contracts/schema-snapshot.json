@@ -1,0 +1,277 @@
+[
+  {
+    "wireName": "atendimento.atualizado",
+    "clrFullName": "SbaCars.Contracts.Atendimento.V1.AtendimentoAtualizadoIntegrationEvent",
+    "properties": [
+      {
+        "name": "AtendimentoId",
+        "type": "System.Guid",
+        "isNullable": false
+      },
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "atendimento.iniciado",
+    "clrFullName": "SbaCars.Contracts.Atendimento.V1.AtendimentoIniciadoIntegrationEvent",
+    "properties": [
+      {
+        "name": "AtendimentoId",
+        "type": "System.Guid",
+        "isNullable": false
+      },
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "catalogo.interesse-solicitado",
+    "clrFullName": "SbaCars.Contracts.Catalogo.V1.InteresseSolicitadoIntegrationEvent",
+    "properties": [
+      {
+        "name": "InteresseId",
+        "type": "System.Guid",
+        "isNullable": false
+      },
+      {
+        "name": "ItemDoCatalogoId",
+        "type": "System.Guid",
+        "isNullable": false
+      },
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "catalogo.item-atualizado",
+    "clrFullName": "SbaCars.Contracts.Catalogo.V1.ItemAtualizadoIntegrationEvent",
+    "properties": [
+      {
+        "name": "ItemDoCatalogoId",
+        "type": "System.Guid",
+        "isNullable": false
+      },
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      },
+      {
+        "name": "OfertaId",
+        "type": "System.Guid",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "catalogo.item-publicado",
+    "clrFullName": "SbaCars.Contracts.Catalogo.V1.ItemPublicadoIntegrationEvent",
+    "properties": [
+      {
+        "name": "ItemDoCatalogoId",
+        "type": "System.Guid",
+        "isNullable": false
+      },
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      },
+      {
+        "name": "OfertaId",
+        "type": "System.Guid",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "compra.reserva-solicitada",
+    "clrFullName": "SbaCars.Contracts.Compra.V1.ReservaSolicitadaIntegrationEvent",
+    "properties": [
+      {
+        "name": "JornadaDeCompraId",
+        "type": "System.Guid",
+        "isNullable": false
+      },
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      },
+      {
+        "name": "OfertaId",
+        "type": "System.Guid",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "estoque.disponibilidade-alterada",
+    "clrFullName": "SbaCars.Contracts.Estoque.V1.DisponibilidadeAlteradaIntegrationEvent",
+    "properties": [
+      {
+        "name": "Disponibilidade",
+        "type": "System.String",
+        "isNullable": false
+      },
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      },
+      {
+        "name": "OfertaId",
+        "type": "System.Guid",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "estoque.oferta-atualizada",
+    "clrFullName": "SbaCars.Contracts.Estoque.V1.OfertaAtualizadaIntegrationEvent",
+    "properties": [
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      },
+      {
+        "name": "OfertaId",
+        "type": "System.Guid",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "estoque.oferta-incluida",
+    "clrFullName": "SbaCars.Contracts.Estoque.V1.OfertaIncluidaIntegrationEvent",
+    "properties": [
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      },
+      {
+        "name": "OfertaId",
+        "type": "System.Guid",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "estoque.oferta-retirada",
+    "clrFullName": "SbaCars.Contracts.Estoque.V1.OfertaRetiradaIntegrationEvent",
+    "properties": [
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      },
+      {
+        "name": "OfertaId",
+        "type": "System.Guid",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "estoque.reserva-recusada",
+    "clrFullName": "SbaCars.Contracts.Estoque.V1.ReservaRecusadaIntegrationEvent",
+    "properties": [
+      {
+        "name": "JornadaDeCompraId",
+        "type": "System.Guid",
+        "isNullable": false
+      },
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      },
+      {
+        "name": "OfertaId",
+        "type": "System.Guid",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "interesse.manifestado",
+    "clrFullName": "SbaCars.Contracts.Interesse.V1.InteresseManifestadoIntegrationEvent",
+    "properties": [
+      {
+        "name": "InteresseId",
+        "type": "System.Guid",
+        "isNullable": false
+      },
+      {
+        "name": "ItemDoCatalogoId",
+        "type": "System.Guid",
+        "isNullable": false
+      },
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "interesse.qualificado",
+    "clrFullName": "SbaCars.Contracts.Interesse.V1.InteresseQualificadoIntegrationEvent",
+    "properties": [
+      {
+        "name": "InteresseId",
+        "type": "System.Guid",
+        "isNullable": false
+      },
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "testdrive.agendado",
+    "clrFullName": "SbaCars.Contracts.TestDrive.V1.TestDriveAgendadoIntegrationEvent",
+    "properties": [
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      },
+      {
+        "name": "SolicitacaoDeTestDriveId",
+        "type": "System.Guid",
+        "isNullable": false
+      }
+    ]
+  },
+  {
+    "wireName": "testdrive.solicitado",
+    "clrFullName": "SbaCars.Contracts.TestDrive.V1.TestDriveSolicitadoIntegrationEvent",
+    "properties": [
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      },
+      {
+        "name": "SolicitacaoDeTestDriveId",
+        "type": "System.Guid",
+        "isNullable": false
+      }
+    ]
+  }
+]
