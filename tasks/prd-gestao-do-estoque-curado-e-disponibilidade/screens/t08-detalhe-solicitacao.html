@@ -1,0 +1,207 @@
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <style>
+        @layer base {
+
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                overscroll-behavior: none;
+            }
+
+            main>:first-child {
+                margin-top: 0 !important;
+            }
+
+            main>:last-child {
+                margin-bottom: 0 !important;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+        id="tailwind-config">tailwind.config = { theme: { extend: { "colors": { "surface-container-low": "#f5f2ff", "on-error-container": "#93000a", "on-secondary-fixed-variant": "#733600", "tertiary-fixed-dim": "#72dc91", "inverse-primary": "#c7c5d4", "tertiary-fixed": "#8ef9ab", "surface-tint": "#5e5d6b", "on-tertiary-fixed-variant": "#005228", "on-primary-fixed": "#1a1b26", "surface-variant": "#e3e0f2", "on-primary-container": "#9795a4", "outline": "#78767c", "surface-container-high": "#e9e6f7", "on-background": "#1a1a27", "on-secondary-fixed": "#311300", "on-tertiary-fixed": "#00210c", "on-surface-variant": "#47464c", "primary-fixed": "#e3e1f1", "surface-container-highest": "#e3e0f2", "on-secondary": "#ffffff", "inverse-surface": "#2f2f3c", "secondary": "#974800", "background": "#fcf8ff", "on-primary-fixed-variant": "#464652", "secondary-container": "#fe8523", "primary-container": "#2e2e3a", "tertiary-container": "#003719", "error-container": "#ffdad6", "primary-fixed-dim": "#c7c5d4", "surface-dim": "#dbd8e9", "surface-bright": "#fcf8ff", "surface": "#fcf8ff", "primary": "#191925", "error": "#ba1a1a", "outline-variant": "#c8c5cc", "secondary-fixed": "#ffdbc7", "on-error": "#ffffff", "on-surface": "#1a1a27", "on-tertiary": "#ffffff", "secondary-fixed-dim": "#ffb688", "surface-container": "#efecfd", "surface-container-lowest": "#ffffff", "tertiary": "#001f0b", "inverse-on-surface": "#f2efff", "on-tertiary-container": "#3eaa65", "on-primary": "#ffffff", "on-secondary-container": "#622d00" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "gutter": "16px", "unit": "4px", "container-padding": "24px", "row-height-dense": "32px", "row-height-standard": "48px" }, "fontFamily": { "data-table": ["Inter"], "headline-lg-mobile": ["Inter"], "headline-lg": ["Inter"], "label-caps": ["Inter"], "headline-md": ["Inter"], "body-main": ["Inter"] }, "fontSize": { "data-table": ["14px", { "lineHeight": "20px", "fontWeight": "500" }], "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }], "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }], "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }], "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }], "body-main": ["14px", { "lineHeight": "20px", "fontWeight": "400" }] } } } }</script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="bg-background font-body-main text-on-surface">
+    <aside class="fixed top-0 left-0 w-64 h-full bg-primary-container text-on-primary z-50 flex flex-col">
+        <div class="h-16 flex items-center px-container-padding border-b border-on-primary-fixed-variant"><span
+                class="font-headline-md text-on-primary">AutoTransparência</span></div>
+        <nav class="flex-1 py-gutter flex flex-col gap-unit"
+            data-active-classes="bg-on-primary-fixed-variant text-on-primary"><a
+                class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors"
+                data-path="painel" href="#">Painel</a><a
+                class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors"
+                data-path="estoque" href="#">Estoque</a><a
+                class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors flex items-center justify-between"
+                data-path="validacao" href="#"><span>Validação</span><span
+                    class="bg-error text-on-error rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold">7</span></a><a
+                class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors"
+                data-path="interesses" href="#">Interesses</a><a
+                class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors"
+                data-path="compras" href="#">Compras</a></nav>
+    </aside>
+    <header
+        class="fixed top-0 left-64 right-0 h-16 bg-surface border-b border-outline-variant z-40 px-container-padding flex items-center justify-between">
+        <span
+            class="text-body-main font-semibold text-on-surface-variant underline decoration-secondary-container decoration-2 underline-offset-4 uppercase tracking-wider">Área
+            de operação</span>
+        <div class="flex items-center gap-gutter">
+            <div class="text-right">
+                <p class="text-body-main font-semibold text-on-surface">Ana Souza</p>
+                <p class="text-[11px] text-on-surface-variant font-label-caps">Operadora Sênior</p>
+            </div>
+            <div
+                class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center overflow-hidden border border-outline-variant">
+                <span class="material-symbols-outlined text-on-surface-variant">person</span></div>
+        </div>
+    </header>
+    <main class="pl-64 pt-16 w-full min-h-screen">
+        <div class="flex flex-col w-full h-full relative">
+            <div class="max-w-[880px] w-full mx-auto pb-32">
+                <nav
+                    class="flex items-center gap-2 text-label-caps text-on-surface-variant mb-container-padding pt-container-padding">
+                    <a class="hover:text-primary transition-colors" href="#">Validação</a>
+                    <span class="material-symbols-outlined text-[16px]">chevron_right</span>
+                    <span class="text-on-surface">Solicitação #4821</span>
+                </nav>
+                <header class="mb-row-height-standard">
+                    <div class="flex items-center gap-unit mb-unit">
+                        <span
+                            class="bg-tertiary-container text-on-tertiary-container font-label-caps px-2 py-1 rounded-sm">Elegibilidade</span>
+                    </div>
+                    <h1 class="font-headline-lg text-on-surface mb-gutter">Honda Civic EXL 2.0</h1>
+                    <div class="flex items-center gap-container-padding text-body-main">
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-on-surface-variant text-[20px]">schedule</span>
+                            <span class="text-error font-semibold">Aberta há 1d 6h</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="material-symbols-outlined text-on-surface-variant text-[20px]">person</span>
+                            <span class="text-on-surface">Solicitante: Carlos Silva (Loja SP Sul)</span>
+                        </div>
+                    </div>
+                </header>
+                <div
+                    class="bg-surface-container-high rounded-xl p-container-padding mb-gutter border border-outline-variant">
+                    <h2 class="font-headline-md text-on-surface mb-gutter">Alteração de Status</h2>
+                    <div class="flex items-center justify-between gap-container-padding">
+                        <div class="flex-1 bg-surface p-gutter rounded-lg border border-outline-variant">
+                            <div class="text-label-caps text-on-surface-variant mb-unit">Vigente</div>
+                            <div class="font-headline-md text-on-surface">Em preparação</div>
+                        </div>
+                        <span class="material-symbols-outlined text-on-surface-variant text-[32px]">arrow_forward</span>
+                        <div class="flex-1 bg-tertiary-container p-gutter rounded-lg border border-tertiary">
+                            <div class="text-label-caps text-on-tertiary-container mb-unit">Proposto</div>
+                            <div class="font-headline-md text-on-tertiary-container">Elegível</div>
+                        </div>
+                    </div>
+                    <div class="mt-container-padding pt-gutter border-t border-outline-variant">
+                        <h3 class="font-label-caps text-on-surface-variant mb-gutter">Critérios de Elegibilidade
+                            Automática</h3>
+                        <ul class="flex flex-col gap-unit">
+                            <li
+                                class="flex items-center justify-between py-unit border-b border-outline-variant/50 last:border-0">
+                                <span class="text-body-main text-on-surface">Laudo de vistoria aprovado</span>
+                                <span
+                                    class="material-symbols-outlined text-tertiary-container text-[20px]">check_circle</span>
+                            </li>
+                            <li
+                                class="flex items-center justify-between py-unit border-b border-outline-variant/50 last:border-0">
+                                <span class="text-body-main text-on-surface">Documentação completa (CRLV, CNH,
+                                    Comprovante)</span>
+                                <span
+                                    class="material-symbols-outlined text-tertiary-container text-[20px]">check_circle</span>
+                            </li>
+                            <li
+                                class="flex items-center justify-between py-unit border-b border-outline-variant/50 last:border-0">
+                                <span class="text-body-main text-on-surface">Fotos padronizadas submetidas (Min.
+                                    12)</span>
+                                <span
+                                    class="material-symbols-outlined text-tertiary-container text-[20px]">check_circle</span>
+                            </li>
+                            <li
+                                class="flex items-center justify-between py-unit border-b border-outline-variant/50 last:border-0">
+                                <span class="text-body-main text-on-surface">Precificação definida dentro da margem (>
+                                    15%)</span>
+                                <span
+                                    class="material-symbols-outlined text-tertiary-container text-[20px]">check_circle</span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="flex flex-col gap-gutter">
+                    <div class="bg-surface rounded-xl p-container-padding border border-outline-variant">
+                        <h2 class="font-headline-md text-on-surface mb-gutter">Justificativa do Solicitante</h2>
+                        <p class="text-body-main text-on-surface-variant">"Veículo finalizou preparo estético ontem à
+                            tarde. Laudo cautelar sem apontamentos e margem de revenda ajustada conforme diretriz
+                            regional. Solicito liberação para início imediato dos anúncios."</p>
+                    </div>
+                    <div class="bg-surface rounded-xl p-container-padding border border-outline-variant">
+                        <h2 class="font-headline-md text-on-surface mb-gutter">Contexto da Oferta</h2>
+                        <div class="grid grid-cols-2 gap-gutter">
+                            <div>
+                                <div class="text-label-caps text-on-surface-variant mb-unit">Preço Sugerido</div>
+                                <div class="font-body-main text-on-surface font-semibold">R$ 115.900</div>
+                            </div>
+                            <div>
+                                <div class="text-label-caps text-on-surface-variant mb-unit">Margem Estimada</div>
+                                <div class="font-body-main text-on-surface font-semibold text-tertiary-container">18.2%
+                                </div>
+                            </div>
+                            <div>
+                                <div class="text-label-caps text-on-surface-variant mb-unit">Localização</div>
+                                <div class="font-body-main text-on-surface">Pátio São Paulo - Sul (Vaga B4)</div>
+                            </div>
+                            <div>
+                                <div class="text-label-caps text-on-surface-variant mb-unit">Disponibilidade Similar
+                                    (Raio 50km)</div>
+                                <div class="font-body-main text-on-surface">4 unidades da concorrência</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div
+                        class="bg-surface-container-low rounded-xl p-container-padding border border-outline-variant flex gap-gutter items-start">
+                        <span class="material-symbols-outlined text-primary text-[24px]">info</span>
+                        <div>
+                            <h3 class="font-headline-md text-on-surface mb-unit">Impacto da Aprovação</h3>
+                            <p class="text-body-main text-on-surface-variant">Ao aprovar, o veículo será imediatamente
+                                integrado ao catálogo público e ativado nos canais de venda parceiros (Webmotors, OLX).
+                                Uma notificação será enviada à equipe de vendas da loja SP Sul.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div
+                class="fixed bottom-0 left-64 right-0 bg-surface border-t border-outline-variant p-container-padding flex justify-end gap-gutter z-30 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
+                <button
+                    class="px-6 py-2 border border-outline text-on-surface font-body-main font-semibold rounded hover:bg-surface-container-high transition-colors">
+                    Rejeitar
+                </button>
+                <button
+                    class="px-6 py-2 bg-[#018444] text-white font-body-main font-semibold rounded hover:bg-[#006e38] transition-colors shadow-sm">
+                    Aprovar solicitação
+                </button>
+            </div>
+        </div>
+    </main>
+</body>
+
+</html>

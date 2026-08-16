@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+
+<html lang="pt-br" style=""><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<style>
+@layer base {
+  html, body { margin: 0; padding: 0; }
+  body { overscroll-behavior: none; }
+  main > :first-child { margin-top: 0 !important; }
+  main > :last-child { margin-bottom: 0 !important; }
+}
+::-webkit-scrollbar { display: none; }
+</style>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+  tailwind.config = {
+    darkMode: "class",
+    theme: {
+      extend: {
+        "colors": {
+                "secondary-fixed": "#ffdbc7",
+                "outline": "#78767c",
+                "primary": "#191925",
+                "surface-variant": "#e3e0f2",
+                "on-primary": "#ffffff",
+                "outline-variant": "#c8c5cc",
+                "surface-container": "#efecfd",
+                "on-background": "#1a1a27",
+                "tertiary-fixed": "#8ef9ab",
+                "primary-fixed": "#e3e1f1",
+                "on-tertiary-container": "#3eaa65",
+                "on-surface": "#1a1a27",
+                "surface-dim": "#dbd8e9",
+                "secondary-container": "#fe8523",
+                "on-error-container": "#93000a",
+                "error-container": "#ffdad6",
+                "on-primary-fixed-variant": "#464652",
+                "surface-container-highest": "#e3e0f2",
+                "surface-tint": "#5e5d6b",
+                "on-secondary": "#ffffff",
+                "background": "#fcf8ff",
+                "secondary": "#974800",
+                "on-primary-container": "#9795a4",
+                "surface-container-low": "#f5f2ff",
+                "surface": "#fcf8ff",
+                "on-tertiary-fixed": "#00210c",
+                "tertiary-container": "#003719",
+                "surface-container-lowest": "#ffffff",
+                "surface-container-high": "#e9e6f7",
+                "tertiary-fixed-dim": "#72dc91",
+                "inverse-on-surface": "#f2efff",
+                "secondary-fixed-dim": "#ffb688",
+                "on-primary-fixed": "#1a1b26",
+                "on-surface-variant": "#47464c",
+                "error": "#ba1a1a",
+                "on-tertiary": "#ffffff",
+                "on-secondary-fixed": "#311300",
+                "tertiary": "#001f0b",
+                "on-secondary-container": "#622d00",
+                "primary-fixed-dim": "#c7c5d4",
+                "inverse-surface": "#2f2f3c",
+                "on-error": "#ffffff",
+                "on-secondary-fixed-variant": "#733600",
+                "inverse-primary": "#c7c5d4",
+                "on-tertiary-fixed-variant": "#005228",
+                "primary-container": "#2e2e3a",
+                "surface-bright": "#fcf8ff"
+        },
+        "borderRadius": {
+                "DEFAULT": "0.125rem",
+                "lg": "0.25rem",
+                "xl": "0.5rem",
+                "full": "0.75rem"
+        },
+        "spacing": {
+                "gutter": "24px",
+                "container-padding": "24px",
+                "row-height-standard": "48px",
+                "unit": "8px",
+                "row-height-dense": "32px",
+                "stack-sm": "8px",
+                "stack-md": "16px",
+                "stack-lg": "32px",
+                "margin-desktop": "40px"
+        },
+        "fontFamily": {
+                "label-caps": [
+                        "Inter"
+                ],
+                "headline-lg-mobile": [
+                        "Inter"
+                ],
+                "headline-md": [
+                        "Inter"
+                ],
+                "headline-lg": [
+                        "Inter"
+                ],
+                "body-main": [
+                        "Inter"
+                ],
+                "data-table": [
+                        "Inter"
+                ]
+        },
+        "fontSize": {
+                "label-caps": [
+                        "12px",
+                        {
+                                "lineHeight": "16px",
+                                "letterSpacing": "0.05em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "headline-lg-mobile": [
+                        "24px",
+                        {
+                                "lineHeight": "32px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "headline-md": [
+                        "20px",
+                        {
+                                "lineHeight": "28px",
+                                "fontWeight": "600"
+                        }
+                ],
+                "headline-lg": [
+                        "32px",
+                        {
+                                "lineHeight": "40px",
+                                "letterSpacing": "-0.01em",
+                                "fontWeight": "700"
+                        }
+                ],
+                "body-main": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "400"
+                        }
+                ],
+                "data-table": [
+                        "14px",
+                        {
+                                "lineHeight": "20px",
+                                "fontWeight": "500"
+                        }
+                ]
+        }
+},
+    },
+  }
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+</head>
+<body class="bg-background font-body-main text-on-surface">
+<aside class="fixed left-0 top-0 h-full w-[256px] bg-[#2E2E3A] z-50 flex flex-col pt-stack-lg">
+<div class="px-stack-lg mb-10">
+<div class="text-[18px] leading-[28px] font-semibold text-on-primary">AutoTransparência</div>
+<div class="text-label-caps text-[#9795a4]">Backoffice</div>
+</div>
+<nav class="flex-1 px-stack-sm flex flex-col gap-unit" data-active-classes="bg-primary text-on-primary">
+<a class="flex items-center px-stack-md py-stack-sm rounded-lg text-[#9795a4] hover:text-on-primary transition-colors" data-path="painel" href="#">
+<span class="material-symbols-outlined mr-stack-sm">dashboard</span>
+<span class="text-body-main">Painel</span>
+</a>
+<a aria-current="page" class="flex items-center px-stack-md py-stack-sm rounded-lg transition-colors bg-primary text-on-primary" data-path="estoque" href="#">
+<span class="material-symbols-outlined mr-stack-sm">directions_car</span>
+<span class="text-body-main">Estoque</span>
+</a>
+<a class="flex items-center justify-between px-stack-md py-stack-sm rounded-lg text-[#9795a4] hover:text-on-primary transition-colors" data-path="validacao" href="#">
+<div class="flex items-center">
+<span class="material-symbols-outlined mr-stack-sm">verified_user</span>
+<span class="text-body-main">Validação</span>
+</div>
+<span class="flex items-center justify-center w-5 h-5 bg-error text-on-error text-[10px] rounded-full font-bold">7</span>
+</a>
+<a class="flex items-center px-stack-md py-stack-sm rounded-lg text-[#9795a4] hover:text-on-primary transition-colors" data-path="interesses" href="#">
+<span class="material-symbols-outlined mr-stack-sm">favorite</span>
+<span class="text-body-main">Interesses</span>
+</a>
+<a class="flex items-center px-stack-md py-stack-sm rounded-lg text-[#9795a4] hover:text-on-primary transition-colors" data-path="compras" href="#">
+<span class="material-symbols-outlined mr-stack-sm">shopping_cart</span>
+<span class="text-body-main">Compras</span>
+</a>
+</nav>
+</aside>
+<div class="pl-[256px]">
+<header class="fixed top-0 left-[256px] right-0 h-16 bg-surface-container-lowest border-b border-outline-variant z-40 px-margin-desktop flex items-center justify-between">
+<div class="text-body-main text-outline font-medium">Área de operação</div>
+<div class="flex items-center gap-stack-lg">
+<div class="flex items-center gap-stack-sm">
+<span class="text-body-main text-on-surface font-medium">Ana Souza</span>
+<div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+</div>
+</div>
+<button class="text-body-main text-on-surface-variant hover:text-primary transition-colors">Sair</button>
+</div>
+</header>
+<main class="p-margin-desktop pt-24 min-h-screen">
+<div class="flex flex-col w-full">
+<!-- Breadcrumb -->
+<nav aria-label="Breadcrumb" class="mb-gutter">
+<ol class="flex items-center space-x-2 text-label-caps text-outline">
+<li><a class="hover:text-primary transition-colors" href="#">Estoque</a></li>
+<li class="flex items-center space-x-2">
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span aria-current="page">Honda Civic EXL 2.0</span>
+</li>
+</ol>
+</nav>
+<!-- Cabeçalho -->
+<div class="flex flex-col gap-unit w-full mb-stack-lg">
+<div class="flex flex-row justify-between items-start w-full gap-4">
+<div class="flex flex-col gap-2">
+<div class="flex flex-row items-center gap-3 flex-wrap">
+<h1 class="text-headline-lg text-primary font-headline-lg m-0">Honda Civic EXL 2.0</h1>
+<div class="flex gap-2">
+<span class="px-2 py-1 bg-tertiary-fixed text-on-tertiary-fixed font-label-caps text-label-caps rounded-sm uppercase">Elegível</span>
+<span class="px-2 py-1 bg-tertiary-fixed text-on-tertiary-fixed font-label-caps text-label-caps rounded-sm uppercase">Disponível</span>
+</div>
+</div>
+<div class="text-body-main text-on-surface-variant font-data-table flex items-center gap-2">
+<span>Placa ABC1D23</span>
+<span class="text-outline-variant">•</span>
+<span>2021/2022</span>
+<span class="text-outline-variant">•</span>
+<span>48.300 km</span>
+<span class="text-outline-variant">•</span>
+<span>Campinas/SP</span>
+</div>
+</div>
+<div class="flex flex-row items-center gap-3 shrink-0">
+<button class="px-4 py-2 bg-[#FC8422] text-on-error border border-transparent rounded font-data-table text-data-table hover:bg-[#e6751c] transition-colors shadow-sm">Solicitar elegibilidade</button>
+<button class="px-4 py-2 bg-surface text-primary border border-primary rounded font-data-table text-data-table hover:bg-surface-variant transition-colors">Solicitar retirada</button>
+<button class="p-2 bg-transparent text-primary border border-transparent rounded hover:bg-surface-variant transition-colors flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">more_horiz</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Layout Duas Colunas -->
+<div class="flex flex-col lg:flex-row w-full gap-gutter items-start">
+<!-- Coluna Principal (Esquerda) -->
+<div class="flex flex-col gap-gutter w-full lg:w-[65%]">
+<!-- Fatos Conhecidos -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-container-padding flex flex-col gap-4">
+<div class="flex justify-between items-center w-full">
+<h2 class="text-headline-md font-headline-md text-primary m-0">Fatos conhecidos</h2>
+<button class="px-3 py-1.5 bg-transparent text-primary rounded-sm font-data-table text-data-table hover:bg-surface-variant transition-colors border border-transparent">Editar fatos</button>
+</div>
+<div class="flex flex-col">
+<!-- Origem -->
+<div class="py-4 border-b border-surface-variant first:pt-0 flex gap-3">
+<span class="material-symbols-outlined text-on-tertiary-container mt-0.5 shrink-0" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<div class="flex flex-col gap-1 w-full">
+<div class="text-label-caps text-outline font-label-caps uppercase">Origem</div>
+<div class="text-body-main text-on-surface font-body-main">Veículo de frota corporativa, único proprietário pessoa jurídica.</div>
+<div class="text-label-caps text-outline font-body-main flex items-center gap-1 mt-1">
+                    Fonte: Contrato de cessão Localiza, 02/2026 · <a class="text-primary hover:underline" href="#">Ver evidência</a>
+</div>
+</div>
+</div>
+<!-- Condição -->
+<div class="py-4 border-b border-surface-variant flex gap-3">
+<span class="material-symbols-outlined text-on-tertiary-container mt-0.5 shrink-0" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<div class="flex flex-col gap-1 w-full">
+<div class="text-label-caps text-outline font-label-caps uppercase">Condição</div>
+<div class="text-body-main text-on-surface font-body-main">Revisões em concessionária até 40.000 km. Pneus dianteiros trocados em 03/2026.</div>
+<div class="text-label-caps text-outline font-body-main flex items-center gap-1 mt-1">
+                    Fonte: Histórico de manutenção Honda · <a class="text-primary hover:underline" href="#">Ver evidência</a>
+</div>
+</div>
+</div>
+<!-- Histórico -->
+<div class="py-4 last:pb-0 flex gap-3">
+<span class="material-symbols-outlined text-outline mt-0.5 shrink-0">info</span>
+<div class="flex flex-col gap-2 w-full">
+<div class="flex items-center gap-2">
+<div class="text-label-caps text-outline font-label-caps uppercase">Histórico</div>
+<span class="px-2 py-0.5 bg-secondary-fixed text-on-secondary-fixed-variant font-label-caps text-[10px] rounded-sm uppercase">Limitação declarada</span>
+</div>
+<div class="text-body-main text-on-surface font-body-main italic">Não foi possível obter o histórico de sinistros deste veículo junto às bases consultadas.</div>
+<div class="text-label-caps text-outline font-body-main mt-1">
+                    Declarado em 10/08/2026 por Ana Souza
+                  </div>
+</div>
+</div>
+</div>
+</div>
+<!-- Dados do Veículo -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-container-padding flex flex-col gap-4">
+<div class="flex justify-between items-center w-full">
+<h2 class="text-headline-md font-headline-md text-primary m-0">Dados do veículo</h2>
+<button class="px-3 py-1.5 bg-transparent text-primary rounded-sm font-data-table text-data-table hover:bg-surface-variant transition-colors border border-transparent">Editar</button>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-4">
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Placa</span>
+<span class="text-data-table font-data-table text-primary">ABC1D23</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Chassi</span>
+<span class="text-data-table font-data-table text-primary">9BW ZZZ 377 VT 004251</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Tipo</span>
+<span class="text-data-table font-data-table text-primary">Sedan</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Marca</span>
+<span class="text-data-table font-data-table text-primary">Honda</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Modelo</span>
+<span class="text-data-table font-data-table text-primary">Civic</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Versão</span>
+<span class="text-data-table font-data-table text-primary">EXL 2.0</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Ano Fab.</span>
+<span class="text-data-table font-data-table text-primary">2021</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Ano Modelo</span>
+<span class="text-data-table font-data-table text-primary">2022</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Quilometragem</span>
+<span class="text-data-table font-data-table text-primary">48.300 km</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Cor</span>
+<span class="text-data-table font-data-table text-primary">Prata</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Combustível</span>
+<span class="text-data-table font-data-table text-primary">Flex</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Câmbio</span>
+<span class="text-data-table font-data-table text-primary">Automático</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">Cidade</span>
+<span class="text-data-table font-data-table text-primary">Campinas</span>
+</div>
+<div class="flex flex-col gap-1">
+<span class="text-label-caps font-label-caps text-outline uppercase">UF</span>
+<span class="text-data-table font-data-table text-primary">SP</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Coluna Lateral (Direita) -->
+<div class="flex flex-col gap-gutter w-full lg:w-[35%]">
+<!-- Preço Oficial -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-container-padding flex flex-col gap-4">
+<h2 class="text-headline-md font-headline-md text-primary m-0">Preço oficial</h2>
+<div class="flex flex-col gap-1">
+<div class="text-headline-lg font-headline-lg text-primary font-data-table">R$ 87.900,00</div>
+<div class="text-label-caps font-body-main text-outline">Atualizado em 12/08/2026 por Ana Souza</div>
+</div>
+<button class="w-full px-4 py-2 mt-2 bg-surface text-primary border border-primary rounded-sm font-data-table text-data-table hover:bg-surface-variant transition-colors">Solicitar alteração</button>
+</div>
+<!-- Disponibilidade -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-container-padding flex flex-col gap-4">
+<h2 class="text-headline-md font-headline-md text-primary m-0">Disponibilidade</h2>
+<div class="flex flex-col gap-1">
+<span class="inline-flex w-fit px-3 py-1.5 bg-tertiary-fixed text-on-tertiary-fixed font-data-table text-[16px] rounded-sm font-bold">Disponível</span>
+<div class="text-label-caps font-body-main text-outline mt-1">Desde 05/08/2026</div>
+</div>
+<button class="w-full px-4 py-2 mt-2 bg-surface text-primary border border-primary rounded-sm font-data-table text-data-table hover:bg-surface-variant transition-colors">Registrar reserva</button>
+<div class="text-[11px] font-body-main text-outline text-center mt-1">Retirar a oferta não altera a disponibilidade, e vice-versa.</div>
+</div>
+<!-- Critérios de elegibilidade -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-container-padding flex flex-col gap-4">
+<h2 class="text-headline-md font-headline-md text-primary m-0">Critérios de elegibilidade</h2>
+<div class="flex flex-col gap-2">
+<div class="flex justify-between text-body-main font-headline-md text-primary">
+<span>5 de 6 atendidos</span>
+</div>
+<div class="w-full h-2 bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-on-tertiary-container w-[83%] rounded-full"></div>
+</div>
+</div>
+<div class="flex flex-col gap-2 mt-2">
+<div class="flex items-center gap-2 text-body-main font-body-main text-primary">
+<span class="material-symbols-outlined text-[18px] text-on-tertiary-container" style="font-variation-settings: 'FILL' 1;">check</span>
+                Identificação
+              </div>
+<div class="flex items-center gap-2 text-body-main font-body-main text-primary">
+<span class="material-symbols-outlined text-[18px] text-on-tertiary-container" style="font-variation-settings: 'FILL' 1;">check</span>
+                Dados básicos
+              </div>
+<div class="flex items-center gap-2 text-body-main font-body-main text-primary">
+<span class="material-symbols-outlined text-[18px] text-on-tertiary-container" style="font-variation-settings: 'FILL' 1;">check</span>
+                Localização
+              </div>
+<div class="flex items-center gap-2 text-body-main font-body-main text-primary">
+<span class="material-symbols-outlined text-[18px] text-on-tertiary-container" style="font-variation-settings: 'FILL' 1;">check</span>
+                Preço oficial
+              </div>
+<div class="flex items-center gap-2 text-body-main font-body-main text-primary">
+<span class="material-symbols-outlined text-[18px] text-on-tertiary-container" style="font-variation-settings: 'FILL' 1;">check</span>
+                Disponibilidade conhecida
+              </div>
+<div class="flex flex-col mt-1">
+<div class="flex items-center gap-2 text-body-main font-body-main text-error">
+<span class="material-symbols-outlined text-[18px]" style="font-variation-settings: 'FILL' 1;">close</span>
+                  Transparência dos fatos
+                </div>
+<div class="ml-[26px] mt-1 flex flex-col gap-1">
+<span class="text-label-caps font-body-main text-error">Condição sem limitação declarada</span>
+<a class="text-label-caps font-label-caps text-primary underline" href="#">Resolver</a>
+</div>
+</div>
+</div>
+</div>
+<!-- Pendências Abertas -->
+<div class="bg-surface-container-lowest border border-outline-variant rounded-xl p-container-padding flex flex-col gap-4">
+<h2 class="text-headline-md font-headline-md text-primary m-0">Pendências abertas</h2>
+<div class="flex flex-col gap-2 p-3 bg-inverse-on-surface border border-outline-variant rounded-lg">
+<div class="flex items-center justify-between">
+<span class="px-2 py-0.5 bg-secondary-fixed text-on-secondary-fixed-variant font-label-caps text-[10px] rounded-sm uppercase">Preço</span>
+</div>
+<div class="text-body-main font-data-table text-primary font-medium">R$ 87.900,00 <span class="text-outline mx-1">→</span> R$ 84.500,00</div>
+<div class="text-label-caps font-body-main text-outline">Aberta por Carlos Lima há 4h</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>
