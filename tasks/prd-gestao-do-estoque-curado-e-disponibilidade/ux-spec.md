@@ -67,7 +67,7 @@ terceiro critério do RF-03.
 | `em-preparacao` | Em preparação | Não | Solicitação de elegibilidade aprovada |
 | `elegivel` | Elegível | **Sim** | Retirada aprovada, ou suspensão automática |
 | `suspensa` | Suspensa | Não | Correção + nova solicitação de elegibilidade |
-| `retirada` | Retirada | Não | — (ver QA-01) |
+| `retirada` | Retirada | Não | Nova solicitação de elegibilidade aprovada (QA-01) |
 
 **Suspensão é automática, não passa pela fila.** Quando uma edição faz a oferta deixar
 de cumprir um critério mínimo, ela cai para `suspensa` na hora (RF-03). Voltar exige
@@ -92,6 +92,7 @@ disponibilidade.
 | `disponivel` → `reservado` | Não — ação direta do operador | RF-05 |
 | `reservado` → `disponivel` | Não — exige ação explícita, nunca expira sozinha (DP-04) | RF-05, DP-04 |
 | `reservado` → `vendido` | Não — ação direta do operador | RF-05 |
+| `disponivel` → `vendido` | Não — venda direta, sem reserva prévia | QA-02 |
 | `vendido` → `disponivel` | **Sim** — solicitação tipo `reversao-venda` | RF-05 |
 
 Agendar test drive (D03) **não** altera disponibilidade (RN-08). A UI não expõe
@@ -279,7 +280,7 @@ do MVP. Estrutura idêntica repetida 3×: **Origem**, **Condição**, **Históri
 | Toggle `Informação indisponível` | switch | Ao ligar, colapsa os campos abaixo e revela o campo de limitação |
 | Descrição | textarea | O que a operação sabe |
 | Fonte | texto | De onde veio (ex.: "Laudo cautelar Auto Check, 03/2026") |
-| Evidência | anexo ou URL | Opcional, mas fonte sem evidência mostra dica |
+| Evidência | upload de arquivo (S3, URL pré-autenticada) | Opcional. PDF/JPG/PNG. Ver §8.1 |
 | Limitação declarada | textarea | **Obrigatório** quando o toggle está ligado (RN-03, CM-6) |
 
 **Aviso permanente no topo** (DP-03 / RN-09):
@@ -293,8 +294,10 @@ quebra um critério mínimo, um diálogo de confirmação avisa antes de salvar:
 > Esta alteração suspende a elegibilidade desta oferta. Voltar a ser elegível exigirá nova validação.
 > [Cancelar] [Salvar e suspender]
 
-**Ações**: Salvar · Cancelar
-**Estados**: vazio · parcial · com limitação declarada · confirmação de suspensão · salvando
+**Ações**: Salvar · Cancelar · Anexar evidência · Remover evidência
+**Estados**: vazio · parcial · com limitação declarada · confirmação de suspensão ·
+salvando · evidência enviando (progresso) · evidência anexada · falha de upload ·
+arquivo recusado por tipo ou tamanho
 
 ---
 
@@ -393,6 +396,7 @@ Vão para `packages/ui` ou `apps/backoffice/src/shared/components`:
 | `ChecklistElegibilidade` | CM-1..CM-6, usado em T03 e T08 |
 | `SeloLimitacao` | marca um fato como limitação declarada |
 | `IndicadorSLA` | idade da solicitação, vermelho após 1 dia útil |
+| `UploadEvidencia` | zona de upload + progresso + chip do anexo, sobre URL pré-autenticada S3 (§8.1) |
 | `EmptyState` | **já existe** em `shared/components/EmptyState.tsx` |
 
 ---
@@ -412,19 +416,72 @@ Toda tela do inventário rastreia a pelo menos um RF. Nenhum RF ficou sem tela.
 
 ---
 
-## 8. Questões em aberto
+## 8. Decisões resolvidas
 
-Não bloqueiam os briefs do Stitch. **Bloqueiam o API Contract** — precisam de decisão
-antes da etapa 2.
+Eram questões em aberto; decididas em 16/08/2026. Todas entram no API Contract.
 
-| ID | Questão | Impacto | Proposta |
-|---|---|---|---|
-| QA-01 | Oferta `retirada` pode voltar ao estoque? | Se sim, T01 precisa de ação de reinclusão e o modelo ganha uma transição. | Sim, via nova solicitação de elegibilidade a partir do T03 em modo read-only. |
-| QA-02 | `disponivel` → `vendido` direto, sem passar por `reservado`? | O RF-05 só descreve `reservado` → `vendido`. Muda os botões do card de disponibilidade. | Permitir — operação real vende sem reserva prévia. |
-| QA-03 | A mesma pessoa pode ter os dois papéis? | Define se DUX-08 é regra de sistema ou só de UI. | Papéis acumuláveis, mas ninguém aprova a própria solicitação. |
-| QA-04 | Evidência é upload de arquivo ou URL? | Upload exige storage, endpoint de mídia e política de retenção — escopo relevante. | Fase 1: apenas URL + texto descritivo. Upload fica para a Fase 2. |
-| QA-05 | "1 dia útil" considera feriados? | Define o cálculo do `IndicadorSLA`. | Fase 1: dias úteis seg–sex, sem calendário de feriados. |
+| ID | Questão | Decisão |
+|---|---|---|
+| QA-01 | Oferta `retirada` pode voltar ao estoque? | **Sim.** Via nova solicitação de elegibilidade, a partir do T03 em modo read-only. Adiciona a transição `retirada` → `elegivel` ao §3.1. |
+| QA-02 | `disponivel` → `vendido` direto? | **Permitido.** A operação real vende sem reserva prévia. Adiciona a transição ao §3.2, sem validação. |
+| QA-03 | Mesma pessoa nos dois papéis? | **Papéis acumuláveis**, mas ninguém aprova a própria solicitação. DUX-08 é regra de **sistema**, não só de UI — o backend rejeita a aprovação, a UI apenas antecipa. |
+| QA-04 | Evidência é upload ou URL? | **Upload de arquivo em S3 com URL pré-autenticada.** Ver §8.1. |
+| QA-05 | "1 dia útil" considera feriados? | **Não na Fase 1.** Seg–sex, sem calendário de feriados. Cálculo do `IndicadorSLA`. |
+
+### 8.1 Evidência — upload S3 com URL pré-autenticada
+
+Substitui a proposta inicial de campo de URL em texto. Impacto em três lugares:
+
+**Fluxo na UI (T04)** — o campo `Evidência` de cada bloco vira uma zona de upload:
+
+1. Operador seleciona ou arrasta o arquivo
+2. Front pede ao backend uma URL de upload pré-autenticada
+3. Front faz `PUT` direto no S3, com barra de progresso
+4. Front confirma ao backend, que passa a referenciar a evidência
+5. Para visualizar, o front pede uma URL de leitura pré-autenticada, de vida curta
+
+O anexo aparece como um chip com nome do arquivo, tamanho, ação de baixar e de remover.
+
+**Estados novos no T04**: sem evidência · enviando (progresso) · anexada · falha de
+upload (com retry) · tipo ou tamanho recusado.
+
+**Impacto no API Contract** — dois endpoints a mais do que o previsto:
+
+| Endpoint | Papel |
+|---|---|
+| `POST /ofertas/{id}/evidencias/upload-url` | Devolve URL pré-autenticada de escrita + chave do objeto |
+| `GET /evidencias/{chave}/download-url` | Devolve URL pré-autenticada de leitura, de vida curta |
+
+Restrições a definir na TechSpec: tipos aceitos (PDF, JPG, PNG), tamanho máximo,
+tempo de vida das URLs, política de retenção e se o bucket é privado com acesso
+exclusivo por URL assinada — **sim, deve ser**, já que evidências podem conter dado
+pessoal (RN-03 exige declarar a fonte, não expô-la publicamente).
+
+**Efeito no CM-6**: evidência continua **opcional**. O critério mínimo exige conteúdo
+**ou** limitação declarada — nunca anexo. Um fato com fonte textual e sem arquivo é
+válido.
 
 ---
 
-*Próxima etapa: `stitch-briefs.md` (geração das telas) e `api-contract.yaml` (OpenAPI 3.1).*
+## 9. Ajustes de frontend registrados (não executados)
+
+Nada de `apps/` foi alterado neste planejamento. Estes itens viram tasks na etapa de
+`tsg-flow-task-creator`:
+
+| ID | Ajuste | Arquivo | Origem |
+|---|---|---|---|
+| AJ-01 | Traduzir o shell de EN para PT-BR: nav (`Dashboard`→`Painel`, `Inventory`→`Estoque`, `Leads`→`Interesses`, `Purchases`→`Compras`), header (`Operations workspace`→`Área de operação`, `Sign out`→`Sair`) | `apps/backoffice/src/app/layouts/BackofficeLayout.tsx` | DUX-01 |
+| AJ-02 | Adicionar item `Validação` à sidebar, com badge de contagem de pendências | `apps/backoffice/src/app/layouts/BackofficeLayout.tsx` | DUX-02 |
+| AJ-03 | Renomear rota `/inventory` → `/estoque` e adicionar `/validacao` | `apps/backoffice/src/app/router.tsx` | §4 |
+| AJ-04 | **Substituir os tokens inferidos pelos do `DESIGN.md`.** Os valores atuais (primária azul `#2563eb`, superfície `#f8fafc`) contradizem o sistema real (primária Deep Navy `#2E2E3A`, ação laranja `#FC8422`, fundo `#f9f9ff`). Inclui a escala tipográfica, `data-tabular` e `label-caps`. | `packages/ui/src/tokens/tokens.css`, `packages/ui/tailwind.preset.ts` | `DESIGN.md` |
+| AJ-05 | Atualizar `.stitch/metadata.json`: `tokensSource` deixa de ser `inferred-minimal` | `.stitch/metadata.json` | `DESIGN.md` |
+| AJ-06 | Criar os componentes compartilhados do §6 | `packages/ui`, `apps/backoffice/src/shared/components` | §6 |
+
+**AJ-04 é o mais relevante e o mais silencioso.** Enquanto ele não for feito, o HTML que
+sair do Stitch e o código do backoffice usam paletas diferentes — o Stitch em Deep Navy
+e laranja, o código em azul. Não quebra nada, mas o primeiro componente construído a
+partir do HTML vai parecer "fora do lugar" sem motivo aparente.
+
+---
+
+*Próxima etapa: `api-contract.yaml` (OpenAPI 3.1).*
