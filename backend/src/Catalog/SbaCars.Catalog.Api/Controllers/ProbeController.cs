@@ -18,4 +18,14 @@ public sealed class ProbeController(ICurrentUser currentUser) : ControllerBase
     [Authorize(Policy = Permissoes.CatalogoGerenciar)]
     public IActionResult WhoAmI() =>
         Ok(new { userId = currentUser.UserId, permissions = currentUser.Permissions });
+
+    /// <summary>
+    /// A7 scaffolding — proves that a request through gateway-public's anonymous
+    /// <c>/api/catalog/{**rest}</c> route reaches this service with the path rewritten to
+    /// <c>/api/_probe/ping</c>. No business rule here. Remove once catalog-service has a real
+    /// anonymous read endpoint (D01).
+    /// </summary>
+    [HttpGet("ping")]
+    [AllowAnonymous]
+    public IActionResult Ping() => Ok(new { service = "catalog", status = "ok" });
 }
