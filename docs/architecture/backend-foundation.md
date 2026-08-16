@@ -740,8 +740,13 @@ regra de particionamento intacta e faz a transação ser local por construção.
 Plano de desenvolvimento: **Loyal Lemming — 2M mensagens/mês, limite de 40 conexões.** Os dois
 números são restrições de arquitetura, não detalhes de fatura.
 
-**Orçamento de conexões.** Rebus abre de uma a duas conexões por processo (confirmar na B1;
-orçamos duas). Só os quatro serviços de domínio falam com o broker — gateways não:
+**Orçamento de conexões.** Duas por processo — **confirmado na B1**, não mais estimado: Rebus abre
+exatamente uma (o transporte guarda uma única conexão ativa por bus) e a sonda de readiness do
+RabbitMQ mantém a segunda viva pela vida do processo, em vez de abrir uma por sondagem. O número é
+afirmado por teste contra a API de gestão do broker (`ConnectionBudgetTests`), porque toda linha da
+tabela abaixo é ele multiplicado por uma contagem de réplicas. Só os quatro serviços de domínio falam
+com o broker — gateways não, e um teste de arquitetura falha o build se um deles alcançar
+`BuildingBlocks.Messaging`:
 
 | Cenário | Conexões |
 |---|---|
@@ -785,9 +790,11 @@ retry nosso — e essa relação precisa ser reavaliada se a política de retry 
 O Swarm não tem cron. O job roda como `IHostedService` dentro do serviço, com **advisory lock do
 PostgreSQL** para garantir que só uma réplica execute — sem Redis, sem agendador externo, e usando
 um mecanismo que o banco já oferece.
-- **A verificar na Fase B:** instrumentação OpenTelemetry do Rebus. Se não houver pacote oficial
-  adequado, os spans de publicação e consumo entram como step de pipeline próprio — a correlação
-  ponta a ponta é requisito, não opcional.
+- **Verificado na B1:** `Rebus.OpenTelemetry` existe e é mantido, mas foi descartado — propaga o
+  contexto de trace num header proprietário em vez do `traceparent` W3C, e desiste do span quando não
+  há `Activity` ambiente, que é justamente o caso do forwarder do outbox. Os spans de publicação e
+  consumo são step de pipeline próprio, como esta linha já previa: a correlação ponta a ponta é
+  requisito, não opcional. Ver o estado da Fase B no §12.
 
 ### 6.4 Contratos
 
@@ -1259,23 +1266,90 @@ inbox/idempotência, `SbaCars.Contracts`, saga e timeout persistidos.
 
 ### Fase B — Mensageria
 
-| # | Entrega | Pronto quando |
-|---|---|---|
-| B1 | `BuildingBlocks.Messaging`: Rebus + RabbitMQ, topologia, envelope CloudEvents, retry/second-level/error queue, spans OTel | Serviço sobe, declara a topologia e a publicação aparece no trace |
-| B2 | Outbox do `Rebus.PostgreSql` por serviço + `IUnitOfWork` que enlista a transação do EF | Rollback de transação não publica evento — provado por teste |
-| B3 | Inbox/idempotência própria (step de pipeline + tabela `inbox_message`) | Reentrega do mesmo `message_id` não duplica efeito — provado por teste |
-| B4 | `SbaCars.Contracts` com os eventos dos Domain Docs + snapshot de schema | Mudança breaking em contrato quebra o build |
-| B5 | Prova `foundation.ping` inventory → catalog | Teste de integração cobre outbox → broker → inbox, com trace correlacionado |
-| B6 | Saga e timeout persistidos no PostgreSQL habilitados e provados (capacidade exigida pela reserva de D04, §2.5) | Saga sobrevive a restart do processo e um timeout dispara depois de reinício — provado por teste |
-| B7 | Job de expurgo de outbox/inbox (7 dias) com advisory lock | Com duas réplicas, o expurgo executa uma vez só — provado por teste |
+| # | Entrega | Pronto quando | Status |
+|---|---|---|---|
+| B1 | `BuildingBlocks.Messaging`: Rebus + RabbitMQ, topologia, envelope CloudEvents, retry/second-level/error queue, spans OTel | Serviço sobe, declara a topologia e a publicação aparece no trace | ✅ concluída |
+| B2 | Outbox do `Rebus.PostgreSql` por serviço + `IUnitOfWork` que enlista a transação do EF | Rollback de transação não publica evento — provado por teste | ⬜ pendente |
+| B3 | Inbox/idempotência própria (step de pipeline + tabela `inbox_message`) | Reentrega do mesmo `message_id` não duplica efeito — provado por teste | ⬜ pendente |
+| B4 | `SbaCars.Contracts` com os eventos dos Domain Docs + snapshot de schema | Mudança breaking em contrato quebra o build | ⬜ pendente |
+| B5 | Prova `foundation.ping` inventory → catalog | Teste de integração cobre outbox → broker → inbox, com trace correlacionado | ⬜ pendente |
+| B6 | Saga e timeout persistidos no PostgreSQL habilitados e provados (capacidade exigida pela reserva de D04, §2.5) | Saga sobrevive a restart do processo e um timeout dispara depois de reinício — provado por teste | ⬜ pendente |
+| B7 | Job de expurgo de outbox/inbox (7 dias) com advisory lock | Com duas réplicas, o expurgo executa uma vez só — provado por teste | ⬜ pendente |
+
+**Estado em 2026-08-16:** B1 entregue e verificada. 40 projetos, 182 testes passando no backend
+(`dotnet build` e `dotnet format` limpos); os quatro serviços sobem com bus, declaram a topologia e
+publicam dentro do trace.
+
+B1 nasceu com uma verificação que o §6.3.2 mandava fazer: **`Rebus.OpenTelemetry` foi lido e
+descartado**, e os spans de publicação e consumo são steps de pipeline próprios. Três motivos, todos
+verificados no fonte do pacote e não por reputação: ele propaga contexto de trace num header
+proprietário (`rbs-ot-tracestate`, com a baggage em JSON) em vez do `traceparent` W3C que o §6.3
+exige no envelope; o step de saída dele **desiste do span quando `Activity.Current` é nulo**, ou
+seja, publicação vinda do forwarder do outbox (B2) ou de um `IHostedService` (B7) sairia sem trace
+nenhum, em silêncio, que é exatamente a falha contra a qual o §6.3.2 diz que a correlação ponta a
+ponta é requisito; e ele não toca no envelope CloudEvents, então o step de saída próprio teria de
+existir de qualquer forma. `TracingOutgoingStep` e `TracingIncomingStep` usam
+`Propagators.DefaultTextMapPropagator` sobre o mesmo dicionário de headers que carrega os `ce_*`, e
+o de saída **abre span mesmo sem activity ambiente** — a diferença que motivou não usar o pacote é
+coberta por teste nominal.
+
+**A topologia diverge do §6.3 de propósito, e o motivo é o orçamento de conexões.** O §6.3 pedia
+exchange por tipo de evento e fila por par consumidor/evento (`catalog.estoque.oferta-incluida`).
+Isso não é implementável sobre Rebus dentro do limite do §6.3.1: um bus Rebus tem exatamente **uma**
+input queue, e `Rebus.RabbitMq` abre **uma conexão por bus** — fila por par exigiria uma instância de
+bus por tipo de evento por serviço, e N buses são N conexões. O que existe é um topic exchange
+durável `sbacars.events` com routing key igual ao nome de negócio do evento, uma fila por serviço com
+um binding por evento assinado, e uma error queue por serviço (`inventory.error`). Preserva-se o
+roteamento por nome de negócio e a assinatura seletiva por consumidor; perde-se a fila física por
+evento, o que significa head-of-line blocking entre tipos dentro do mesmo serviço — registrado no
+`<remarks>` de `MessagingTopology`, com `PrefetchCount`/`MaxParallelism` como as alavancas de
+concorrência que sobram (§6.3.1: "concorrência se regula por prefetch, nunca abrindo mais conexões").
+
+**O orçamento de conexões do §6.3.1 deixou de ser estimativa.** Aquela seção dizia "Rebus abre de uma
+a duas conexões por processo (confirmar na B1; orçamos duas)". Confirmado: Rebus abre **uma**, e a
+segunda é da sonda de readiness do RabbitMQ — um singleton que mantém uma conexão viva pela vida do
+processo em vez de abrir uma por sondagem, senão o número passaria a depender da frequência com que
+o orquestrador consulta `/health/ready`. Dois por processo, exatamente o orçado, e agora afirmado por
+teste contra a API de gestão do broker (`ConnectionBudgetTests`) — as linhas da tabela do §6.3.1
+continuam válidas sem alteração, incluindo a que faz de duas réplicas o teto do ambiente de
+desenvolvimento.
+
+O nome do evento no fio vem de `[IntegrationEvent("estoque.oferta-incluida")]`, em `SbaCars.Contracts`
+— que segue com **zero** `ProjectReference` e `PackageReference`, afirmado por teste de arquitetura,
+porque é o vocabulário que os quatro serviços referenciam e qualquer dependência ali viraria
+dependência de todos. `IntegrationEventTopicConvention` substitui o `DefaultTopicNameConvention` do
+Rebus e **lança** se um tipo cruzar a fronteira sem o atributo: sem isso o roteamento passaria a
+depender do nome da classe C#, e renomear um tipo quebraria consumidor em silêncio. `ce_id` reusa o
+`rbs2-msg-id` do Rebus de propósito — é o mesmo identificador que o inbox de B3 vai usar para
+deduplicar, e gerar um GUID novo ali quebraria B3 sem quebrar nenhum teste de B1.
+
+`IIntegrationEventPublisher` mora em `BuildingBlocks.Application` e `RebusIntegrationEventPublisher`
+em `.Messaging`, o mesmo par que `IUnitOfWork`/`EfUnitOfWork` já formava — `.Domain` e `.Application`
+não alcançam Rebus nem `RabbitMQ.Client`, nem por trás de `ProjectReference`, e **nenhum gateway
+alcança `.Messaging`** (§6.3.1: só os quatro serviços falam com o broker; o orçamento acima depende
+disso). As duas regras estão em `MessagingContainmentTests` e foram provadas falhando de propósito
+antes de a violação ser revertida — uma contra `Rebus` em `Inventory.Domain`, outra contra
+`.Messaging` em `Gateway.Public`, esta última exercitando o fecho transitivo e não a varredura de
+texto. O health check de RabbitMQ fecha a pendência que a A8 deixou anotada nos quatro `Program.cs`;
+o comentário lá agora cita só o que continua faltando — S3/MinIO em C e Redis em D6.
+
+O compose ganhou `rabbitmq:4.2-management-alpine` (tag fixa, com volume, sem TLS de propósito: a
+diferença para o `amqps://` de um CloudAMQP gerenciado é configuração, e `MessagingOptionsValidator`
+já **reprova no boot** uma connection string `amqps://` que desligue validação de certificado — o
+§6.3.1 chama isso de "o erro clássico aqui").
+
+Fica fora, deliberadamente: outbox (B2), inbox/idempotência (B3), os eventos de negócio dos Domain
+Docs (B4), `foundation.ping` ponta a ponta (B5), saga e timeout persistidos (B6) e o job de expurgo
+(B7). O evento usado nos testes de integração chama-se `test.messaging-probe` — nome técnico, não de
+negócio — justamente para não antecipar B4 nem B5.
 
 ### Fase C — Storage
 
-| # | Entrega | Pronto quando |
-|---|---|---|
-| C1 | `BuildingBlocks.Storage` + `IObjectStorage` sobre S3/MinIO | Teste de integração com MinIO em Testcontainers |
-| C2 | Buckets, política privada, CORS, criação idempotente no compose | `docker compose up` deixa os buckets prontos |
-| C3 | Endpoint de URL pré-assinada (upload e download) protegido por política | Upload direto do browser funciona; acesso anônimo ao bucket é negado |
+| # | Entrega | Pronto quando | Status |
+|---|---|---|---|
+| C1 | `BuildingBlocks.Storage` + `IObjectStorage` sobre S3/MinIO | Teste de integração com MinIO em Testcontainers | ⬜ pendente |
+| C2 | Buckets, política privada, CORS, criação idempotente no compose | `docker compose up` deixa os buckets prontos | ⬜ pendente |
+| C3 | Endpoint de URL pré-assinada (upload e download) protegido por política | Upload direto do browser funciona; acesso anônimo ao bucket é negado | ⬜ pendente |
 
 ### Fase D — Deploy no Swarm
 

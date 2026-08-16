@@ -4,5 +4,10 @@
     <ProjectReference Include="..\SbaCars.Inventory.Infrastructure\SbaCars.Inventory.Infrastructure.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Web\SbaCars.BuildingBlocks.Web.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Observability\SbaCars.BuildingBlocks.Observability.csproj" />
+    <!-- B1 (§6): referenced from .Api, not .Infrastructure — the bus is a process-level concern,
+         exactly like telemetry (AddSbaCarsObservability, above), wired once from Program.cs rather
+         than owned by the data-access layer. The other three services' .Api projects reference
+         BuildingBlocks.Messaging for the same reason; this comment is not repeated there. -->
+    <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Messaging\SbaCars.BuildingBlocks.Messaging.csproj" />
   </ItemGroup>
 </Project>
