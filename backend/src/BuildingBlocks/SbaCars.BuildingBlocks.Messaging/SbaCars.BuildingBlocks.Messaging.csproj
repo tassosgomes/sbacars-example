@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- B1 — Rebus over RabbitMQ (§6): the bus itself, its DI wiring, and the health check that
+         watches the same broker connection budget (§6.3.1). RabbitMQ.Client is pinned explicitly
+         (D1) even though Rebus.RabbitMq already brings it transitively — the readiness probe in
+         HealthChecks/ talks to RabbitMQ.Client directly (its own connection, see the remarks on
+         RabbitMqConnectionProbe), so this project needs the package reference on its own merits,
+         not just as a side effect of what Rebus.RabbitMq happens to depend on. -->
+    <PackageReference Include="Rebus" />
+    <PackageReference Include="Rebus.RabbitMq" />
+    <PackageReference Include="Rebus.ServiceProvider" />
+    <PackageReference Include="RabbitMQ.Client" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+    <!-- OpenTelemetry.Api only (not the full OpenTelemetry SDK): this project needs ActivitySource,
+         the W3C Propagators and Baggage (§6.3.2, D8) to stamp trace context on outgoing/incoming
+         messages, and to register its ActivitySource name on whatever TracerProviderBuilder the
+         host already assembled — it never builds a TracerProvider of its own. That is
+         BuildingBlocks.Observability's job. -->
+    <PackageReference Include="OpenTelemetry.Api" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- MessagingOptionsValidator is internal (D6): only its behavior, not its type, is meant to be
+         public. Granting the test assembly internals visibility — the same pattern
+         SbaCars.Gateway.Public/Backoffice already use for SbaCars.Gateway.Tests — lets
+         MessagingOptionsValidatorTests exercise it directly instead of only indirectly through a
+         full DI/host boot. -->
+    <InternalsVisibleTo Include="SbaCars.BuildingBlocks.Messaging.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Direction is BuildingBlocks.Messaging -> Contracts, never the reverse (D4): Contracts is
+         referenced by all four services and must stay dependency-free by construction (§3.3), so
+         the [IntegrationEvent] attribute that names a topic lives in Contracts, and this project
+         reads it via reflection in IntegrationEventTopicConvention. Putting the attribute in
+         .Messaging instead would drag Rebus into Contracts, which is exactly the coupling §3.3
+         forbids. -->
+    <ProjectReference Include="..\..\Contracts\SbaCars.Contracts\SbaCars.Contracts.csproj" />
+    <ProjectReference Include="..\SbaCars.BuildingBlocks.Application\SbaCars.BuildingBlocks.Application.csproj" />
+  </ItemGroup>
+
+</Project>

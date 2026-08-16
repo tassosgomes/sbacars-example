@@ -24,6 +24,10 @@
     <PackageReference Include="Microsoft.AspNetCore.TestHost" />
     <PackageReference Include="Testcontainers.PostgreSql" />
     <PackageReference Include="Npgsql" />
+    <!-- B1 — SbaCarsRabbitMqFixture, same "fixtures Testcontainers" §3.1 justification as
+         Testcontainers.PostgreSql above; not the §3.3 "second consumer" rule (see the fixture's own
+         remarks). -->
+    <PackageReference Include="Testcontainers.RabbitMq" />
     <!-- SbaCarsPostgresFixture implements Xunit.IAsyncLifetime, so this library needs the xunit
          package itself, not just the projects that consume it. Its own [CollectionDefinition]
          stays local to each consuming test assembly — see SbaCarsPostgresCollection's remarks in

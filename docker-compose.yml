@@ -70,6 +70,31 @@ services:
       - "3001:3001"
       - "3002:3002"
 
+  # B1 — RabbitMQ como broker de mensageria local (§6, §6.3.1): a mesma topologia usada em
+  # produção (Rebus sobre AMQP), só que sem TLS de propósito — a diferença para o `amqps://` de um
+  # CloudAMQP gerenciado é só configuração da connection string, não código (ver
+  # MessagingOptionsValidator, que já rejeita `amqps://` com validação de certificado desligada).
+  # Imagem `-management` (não a "plain"): o painel de filas/exchanges/bindings em localhost:15672
+  # é o jeito de inspecionar a topologia declarada por AddSbaCarsMessaging (exchanges
+  # sbacars.direct/sbacars.events, filas por serviço) sem ferramenta adicional nenhuma. Volume
+  # porque fila durável e mensagem persistente (o que Rebus.RabbitMq declara por padrão) perderiam
+  # sentido se um `docker compose down && up` apagasse tudo.
+  rabbitmq:
+    image: rabbitmq:4.2-management-alpine
+    environment:
+      RABBITMQ_DEFAULT_USER: sbacars
+      RABBITMQ_DEFAULT_PASS: sbacars_dev_pw
+    ports:
+      - "5672:5672"      # AMQP
+      - "15672:15672"    # painel de gestão
+    volumes:
+      - sbacars-rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD-SHELL", "rabbitmq-diagnostics -q check_running && rabbitmq-diagnostics -q check_local_alarms"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+
   # A8 — Aspire Dashboard como coletor OTLP local (§8, §10): traces, métricas e logs
   # correlacionados dos seis processos .NET e do OpenTelemetry Web dos dois SPAs num único lugar,
   # sem subir uma stack de observabilidade completa. Tag fixa (nunca `latest`, mesma disciplina do
@@ -105,3 +130,4 @@ services:
 
 volumes:
   sbacars-postgres-data:
+  sbacars-rabbitmq-data:

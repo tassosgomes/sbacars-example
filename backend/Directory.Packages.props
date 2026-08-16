@@ -47,6 +47,19 @@
     <PackageVersion Include="OpenTelemetry.Exporter.InMemory" Version="1.17.0" />
     <PackageVersion Include="Npgsql.OpenTelemetry" Version="10.0.3" />
     <PackageVersion Include="Microsoft.Extensions.Diagnostics.HealthChecks" Version="10.0.11" />
+
+    <!-- B1 — mensageria (Rebus sobre RabbitMQ: bus, transporte, wiring com o container de DI). -->
+    <PackageVersion Include="Rebus" Version="8.9.2" />
+    <PackageVersion Include="Rebus.RabbitMq" Version="10.1.1" />
+    <PackageVersion Include="Rebus.ServiceProvider" Version="10.7.2" />
+    <!-- Pinada explicitamente mesmo sendo a mesma versão que Rebus.RabbitMq já traz transitivamente
+         (§6.3): o health check de B1 fala com o broker por conta própria, com sua própria conexão
+         (ver RabbitMqConnectionProbe), então este pacote é uma dependência direta deste
+         repositório, não só um efeito colateral de Rebus.RabbitMq — pinar evita que as duas
+         divirjam silenciosamente numa atualização futura. -->
+    <PackageVersion Include="RabbitMQ.Client" Version="7.1.2" />
+    <PackageVersion Include="OpenTelemetry.Api" Version="1.17.0" />
+    <PackageVersion Include="Testcontainers.RabbitMq" Version="4.14.0" />
   </ItemGroup>
 
 </Project>

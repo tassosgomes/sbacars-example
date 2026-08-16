@@ -1,3 +1,5 @@
+using SbaCars.BuildingBlocks.Messaging;
+using SbaCars.BuildingBlocks.Messaging.HealthChecks;
 using SbaCars.BuildingBlocks.Observability;
 using SbaCars.BuildingBlocks.Persistence.HealthChecks;
 using SbaCars.BuildingBlocks.Web.Auditing;
@@ -16,14 +18,16 @@ builder.Services.AddSbaCarsOpenApi();
 builder.Services.AddSbaCarsAuth(builder.Configuration, builder.Environment);
 builder.Services.AddPurchaseInfrastructure(builder.Configuration);
 builder.Services.AddSbaCarsObservability(builder.Configuration, "purchase-service");
+builder.Services.AddSbaCarsMessaging(builder.Configuration, "purchase-service");
 builder.Services.AddSbaCarsForwardedHeaders();
 builder.Services.AddSbaCarsRuntimeReadiness(builder.Configuration);
 builder.Services.AddSbaCarsHealthChecks()
     .AddSbaCarsPostgresReadinessCheck<PurchaseDbContext>(HealthCheckTags.Ready)
-    .AddSbaCarsJwksReadinessCheck(HealthCheckTags.Ready);
-// RabbitMQ, S3/MinIO and Redis do not exist yet (Fases B, C and D6) — no health check for them
-// here; adding one that always fails would make /health/ready lie about what this service
-// actually needs today.
+    .AddSbaCarsJwksReadinessCheck(HealthCheckTags.Ready)
+    .AddSbaCarsRabbitMqReadinessCheck(HealthCheckTags.Ready);
+// S3/MinIO and Redis do not exist yet (Fases C and D6) — no health check for them here; adding
+// one that always fails would make /health/ready lie about what this service actually needs
+// today. RabbitMQ arrived in B1, above.
 
 var app = builder.Build();
 
