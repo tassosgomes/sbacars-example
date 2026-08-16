@@ -21,8 +21,10 @@ info:
       `SbaCars.BuildingBlocks.Web.Auth.AuthExtensions`.
     - **Autorização:** políticas por permissão, como em
       `SbaCars.BuildingBlocks.Web.Auth.Permissoes`. Este contrato usa `estoque:ler` e
-      `estoque:gerenciar`, que já existem, e **introduz `estoque:validar`** — ver
-      "Questões em aberto" no `api-contract.md`.
+      `estoque:gerenciar`, que já existem, e **introduz duas permissões novas**, ambas
+      aprovadas em 16/08/2026: `estoque:validar` (fila de validação, fluxo de usuário) e
+      `estoque:integrar` (feed para D01, fluxo de serviço). Ver "Decisões resolvidas" no
+      `api-contract.md`.
     - **Paginação:** `page` 1-based e `pageSize` com padrão 20 e máximo 100, espelhando
       `PagedRequest`/`PagedResult` de `SbaCars.BuildingBlocks.Application`.
     - **Erros:** RFC 9457 `ProblemDetails` com a extensão `traceId`, exatamente como o
@@ -892,10 +894,13 @@ paths:
         Consumido por catalog-service (D01), não pelo backoffice. Suporta sincronização
         incremental por `atualizadoApos`, para que D01 reflita mudanças em até uma hora sem
         varrer o catálogo inteiro.
+
+        Autenticação por **client credentials**, não por token de operador: quem chama é um
+        serviço, não uma pessoa.
       operationId: listarOfertasElegiveis
       tags: [Integracao]
       security:
-        - BearerAuth: [estoque:ler]
+        - ServicoAuth: [estoque:integrar]
       parameters:
         - $ref: '#/components/parameters/Page'
         - $ref: '#/components/parameters/PageSize'
@@ -953,6 +958,21 @@ components:
             estoque:ler: Leitura operacional do estoque curado.
             estoque:gerenciar: Escrita no estoque — cadastro, fatos, disponibilidade e abertura de solicitações.
             estoque:validar: Aprovação e rejeição de solicitações na fila de validação.
+
+    ServicoAuth:
+      type: oauth2
+      description: |
+        Token de serviço, para chamada máquina-a-máquina. Usado apenas pela integração com
+        o catalog-service (D01), que não age em nome de um usuário e portanto não pode
+        apresentar um token de sessão de operador.
+
+        A separação é deliberada: um token de operador nunca deve conseguir ler o feed de
+        integração, e o cliente de integração nunca deve conseguir escrever no estoque.
+      flows:
+        clientCredentials:
+          tokenUrl: http://localhost:3001/oidc/token
+          scopes:
+            estoque:integrar: Leitura do feed de ofertas elegíveis para o catálogo público.
 
   parameters:
     Page:

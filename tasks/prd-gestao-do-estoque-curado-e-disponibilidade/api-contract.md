@@ -16,8 +16,8 @@ novo** — exceto onde marcado com ⚠️.
 
 | Decisão | Escolha | Motivo |
 |---|---|---|
-| Autenticação | OAuth2 Authorization Code + PKCE, JWT do Logto | Já implementado em `AuthExtensions` e `oidcConfig.ts`. O resource indicator RFC 8707 `https://api.sbacars.app` é obrigatório. |
-| Autorização | Políticas por permissão | `Permissoes.EstoqueLer`, `EstoqueGerenciar` e ⚠️ `estoque:validar` (novo) |
+| Autenticação | OAuth2 Authorization Code + PKCE (usuário) e Client Credentials (serviço), JWT do Logto | Já implementado em `AuthExtensions` e `oidcConfig.ts`. O resource indicator RFC 8707 `https://api.sbacars.app` é obrigatório. |
+| Autorização | Políticas por permissão | `estoque:ler` e `estoque:gerenciar` já existem; ⚠️ `estoque:validar` e `estoque:integrar` são novas (aprovadas — ver "Decisões resolvidas") |
 | Paginação | `page` 1-based + `pageSize`, padrão 20, máx 100 | Espelha `PagedRequest`/`PagedResult` — serialização sem adaptador |
 | Formato de erro | RFC 9457 `ProblemDetails` + extensão `traceId` | É exatamente o que `GlobalExceptionHandler` já emite |
 | Datas | ISO 8601 UTC | `UtcDateTimeOffsetConverter` já garante isso na persistência |
@@ -60,7 +60,7 @@ Os paths deste documento são **relativos ao gateway**, que é o que o frontend 
 | `GET` | `/solicitacoes/{solicitacaoId}` | Detalhe da solicitação | `estoque:validar` | 200, 401, 403, 404, 500 |
 | `POST` | `/solicitacoes/{solicitacaoId}/aprovar` | Aprovar e aplicar | `estoque:validar` | 200, 401, 403, 404, 409, 422, 500 |
 | `POST` | `/solicitacoes/{solicitacaoId}/rejeitar` | Rejeitar com justificativa | `estoque:validar` | 200, 400, 401, 403, 404, 409, 422, 500 |
-| `GET` | `/ofertas-elegiveis` | Fornecer ofertas elegíveis a D01 | `estoque:ler` | 200, 400, 401, 403, 500 |
+| `GET` | `/ofertas-elegiveis` | Fornecer ofertas elegíveis a D01 | `estoque:integrar` (serviço) | 200, 400, 401, 403, 500 |
 
 **16 endpoints.** Cobertura de RF-01 a RF-06 na seção "Rastreabilidade".
 
@@ -443,6 +443,8 @@ Rejeitar exige `justificativa` — ela volta ao operador como motivo (RF-02).
 ### `GET /ofertas-elegiveis` — Integração com D01
 
 **Consumido por:** catalog-service (D01), **não** pelo backoffice.
+**Autenticação:** client credentials com `estoque:integrar` — quem chama é um serviço, não
+uma pessoa. Um token de operador não abre este endpoint.
 
 Fornece apenas ofertas em situação `elegivel`. Retiradas, suspensas e em preparação nunca
 aparecem — é a terceira condição de aceite do RF-06.
@@ -551,17 +553,56 @@ Nenhum RF ficou sem endpoint; nenhum endpoint ficou sem RF.
 
 ---
 
-## Questões em aberto
+## Decisões resolvidas
 
-Precisam de decisão antes da implementação.
+Decididas em 16/08/2026. Todas já refletidas no `api-contract.yaml`.
 
-| ID | Questão | Impacto | Proposta |
+| ID | Questão | Decisão |
+|---|---|---|
+| QC-01 | `estoque:validar` é uma permissão nova | **Criar.** A alternativa — reusar `estoque:gerenciar` — eliminaria a segregação que é a razão de existir do DP-02. |
+| QC-02 | Bucket S3 e retenção de evidências | **Definir na TechSpec de backend:** bucket privado, criptografia em repouso, retenção alinhada à LGPD. |
+| QC-03 | Identidade do catalog-service em `GET /ofertas-elegiveis` | **Client credentials com scope próprio `estoque:integrar`.** Consequência da aprovação: é a **segunda** permissão nova. |
+| QC-04 | Periodicidade da reconciliação de D01 | **A cada 15 minutos**, com `atualizadoApos`. Folga confortável dentro da meta de uma hora. |
+| QC-05 | Placa é imutável após o cadastro? | **Editável enquanto `em-preparacao`, imutável depois.** |
+
+### Duas permissões novas, dois fluxos diferentes
+
+A decisão do QC-01 junto com a do QC-03 acrescenta **duas** entradas ao vocabulário de
+permissões, e elas não são intercambiáveis:
+
+| Permissão | Fluxo OAuth2 | Quem apresenta | Para quê |
 |---|---|---|---|
-| QC-01 | ⚠️ **`estoque:validar` é uma permissão nova.** `Permissoes` documenta a Fase 1 como fechada em 4 permissões e diz que a Fase 2 adiciona `compra:gerenciar` e `reserva:extender` "e em nenhum outro lugar". | Sem ela, o Responsável de validação não se distingue do Operador e o DUX-08 vira honra. Exige criar o scope no Logto, adicionar a `Permissoes.All` e incluir em `API_SCOPES` no `oidcConfig.ts`. | Criar. A alternativa — reusar `estoque:gerenciar` — elimina a segregação que é a razão de existir do DP-02. |
-| QC-02 | O bucket S3 e a política de retenção de evidências ainda não existem. | Bloqueia RF-03 fim a fim. | Definir na TechSpec de backend: bucket privado, criptografia em repouso, retenção alinhada à LGPD. |
-| QC-03 | `GET /ofertas-elegiveis` é chamado por catalog-service com qual identidade? | Token de usuário não serve para chamada serviço-a-serviço. | Client credentials com scope próprio (ex.: `estoque:integrar`), decidido junto com QC-01. |
-| QC-04 | A reconciliação de D01 roda em qual periodicidade? | Afeta a meta de "até uma hora" quando um evento se perde. | A cada 15 min com `atualizadoApos`, folga confortável dentro da meta. |
-| QC-05 | Placa é imutável após o cadastro? | O `PATCH` hoje permite alterá-la; se for imutável, sai do schema de patch. | Editável enquanto `em-preparacao`, imutável depois. |
+| `estoque:validar` | Authorization Code + PKCE | Pessoa — Responsável de validação | Aprovar e rejeitar na fila |
+| `estoque:integrar` | Client Credentials | Serviço — catalog-service | Ler o feed de ofertas elegíveis |
+
+A separação é deliberada: um token de operador não deve conseguir ler o feed de integração,
+e o cliente de integração não deve conseguir escrever no estoque. Por isso o contrato define
+dois `securitySchemes` distintos (`BearerAuth` e `ServicoAuth`), não um só com mais escopos.
+
+---
+
+## Ajustes de plataforma registrados (não executados)
+
+Nenhum código de `backend/` ou `apps/` foi alterado neste planejamento. Estes itens viram
+tasks na etapa de `tsg-flow-task-creator`.
+
+| ID | Ajuste | Onde |
+|---|---|---|
+| AP-01 | Adicionar `EstoqueValidar = "estoque:validar"` e `EstoqueIntegrar = "estoque:integrar"` às constantes e a `Permissoes.All` | `backend/src/BuildingBlocks/SbaCars.BuildingBlocks.Web/Auth/Permissoes.cs` |
+| AP-02 | Atualizar o comentário XML de `Permissoes.All`, que hoje afirma que a Fase 1 está fechada em 4 permissões e que só a Fase 2 acrescenta outras | mesmo arquivo |
+| AP-03 | Criar os dois scopes no Logto para o resource `https://api.sbacars.app` e conceder `estoque:validar` ao papel de Responsável de validação | Configuração do Logto |
+| AP-04 | Criar a aplicação de client credentials do catalog-service com `estoque:integrar` | Configuração do Logto |
+| AP-05 | Incluir `estoque:validar` em `API_SCOPES` | `apps/backoffice/src/features/auth/config/oidcConfig.ts` (= AJ-07 do `ux-spec.md`) |
+| AP-06 | Provisionar o bucket privado de evidências, com CORS liberando `PUT` da origem do backoffice | Infra — decorre de QC-02 |
+| AP-07 | Agendar a reconciliação de 15 minutos no catalog-service | D01 — decorre de QC-04 |
+
+**AP-02 merece atenção.** O comentário atual de `Permissoes.All` é uma afirmação explícita de
+escopo fechado — deixá-lo desatualizado transforma documentação correta em documentação que
+mente, que é pior do que não ter comentário.
+
+O gateway **não** precisa de ajuste: as rotas de `SbaCars.Gateway.Backoffice` já usam
+`AuthorizationPolicy: "Default"` sobre `/api/inventory/{**rest}`, e a autorização fina
+acontece no inventory-service, por endpoint.
 
 ---
 
