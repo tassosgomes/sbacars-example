@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
     <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Web\SbaCars.BuildingBlocks.Web.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Observability\SbaCars.BuildingBlocks.Observability.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\SbaCars.Gateway.Shared\SbaCars.Gateway.Shared.csproj" />

@@ -14,6 +14,9 @@
     </PackageReference>
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <!-- A8 — captures the spans InstrumentedDestinationStub's and the gateway's own tracer
+         providers end, so TraceContinuityTests can assert on them directly. -->
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
   </ItemGroup>
 
   <ItemGroup>
@@ -32,6 +35,8 @@
     <!-- Referenced only for its public RateLimitingPolicies constant, so a route-table assertion
          never drifts from the actual policy name in code. -->
     <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Web\SbaCars.BuildingBlocks.Web.csproj" />
+    <!-- A8 — InstrumentedDestinationStub calls the real AddSbaCarsObservability directly. -->
+    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Observability\SbaCars.BuildingBlocks.Observability.csproj" />
   </ItemGroup>
 
 </Project>

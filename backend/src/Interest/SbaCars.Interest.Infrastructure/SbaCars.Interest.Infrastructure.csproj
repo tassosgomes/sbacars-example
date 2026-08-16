@@ -12,4 +12,14 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+
+  <ItemGroup>
+    <!-- A8 — Npgsql's own OpenTelemetry tracing (§8), wired here and not in
+         BuildingBlocks.Observability: only the four services' Infrastructure talk to Postgres,
+         and BuildingBlocks.Observability is also referenced by the two gateways, which never
+         should carry Npgsql (§3.3). ConfigureOpenTelemetryTracerProvider composes additively with
+         whatever AddSbaCarsObservability already registered in Program.cs, in either call order. -->
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="Npgsql.OpenTelemetry" />
+  </ItemGroup>
 </Project>
