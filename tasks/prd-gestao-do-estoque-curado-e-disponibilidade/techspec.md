@@ -25,18 +25,16 @@ Este é o **primeiro domínio real do repositório** — os quatro serviços tê
 `ProbeController`, `DbContext` vazio e `InitialCreate`. As decisões aqui viram o precedente dos
 outros três.
 
-**Trade-off primário:** escolhemos **corretude transacional sobre velocidade de entrega**. Duas
-consequências concretas. Primeira: as fatias que publicam eventos de integração ficam bloqueadas
-pela Fase B2 (outbox), em vez de publicar direto e aceitar que um evento perdido tire uma oferta
-aprovada do catálogo em silêncio (ADR-004). Segunda: a suspensão de elegibilidade custa dois
-round-trips no caminho em que ocorre, em vez de suspender calado e avisar depois (ADR-003). O que
-se ganha é que nenhuma oferta fica elegível com critério quebrado, e nenhuma sai do catálogo sem
-alguém ter confirmado. O que se abre mão é entregar o RF-05 e o RF-06 ponta a ponta antes de uma
-dependência de fundação que não é nossa.
+**Trade-off primário:** escolhemos **corretude transacional sobre velocidade de entrega**. A
+suspensão de elegibilidade custa dois round-trips no caminho em que ocorre, em vez de suspender
+calado e avisar depois (ADR-003); a publicação de evento acontece dentro do outbox, nunca ao lado
+dele. O que se ganha é que nenhuma oferta fica elegível com critério quebrado, nenhuma sai do
+catálogo sem alguém ter confirmado, e evento e fato de negócio existem juntos ou não existem. O
+que se abre mão é o caminho mais curto em cada um desses três pontos.
 
-O fatiamento foi montado para que esse bloqueio doa o mínimo: **as oito primeiras fatias entregam
-comportamento demonstrável sem publicar nenhum evento**, incluindo a fila de validação inteira, a
-transição de uma oferta para elegível e a máquina de disponibilidade.
+**Linha de base:** a fundação (Fases A–D do `backend-foundation.md`) está concluída antes de a
+implementação começar (ADR-008). Nenhuma fatia deste documento tem dependência externa — a coluna
+"Bloqueado por" contém apenas outras fatias. A ordem delas segue valor de negócio incremental.
 
 ---
 
@@ -73,7 +71,7 @@ Tudo dentro de `inventory-service`, no schema `inventory`. Nenhum componente nov
   políticas de autorização por permissão.
 - **`SbaCars.BuildingBlocks.Application`** — recebe o dispatcher CQRS e suas abstrações
   (habilitador EN-01), porque os quatro serviços vão usá-los.
-- **`SbaCars.Contracts`** — recebe os quatro records de evento de integração (dentro de V-09).
+- **`SbaCars.Contracts`** — **já contém** os quatro records de evento do estoque, entregues na Fase B4 em `Estoque/V1/`. O D02 os publica; não os define.
 
 ### Diagrama de Componentes
 
@@ -118,8 +116,8 @@ flowchart TB
     CMD --> REPO
     QRY --> PROJ
     REPO & PROJ --> PG
-    CMD -. "V-09, após B2" .-> MQ
-    C3 -. "V-11, após Fase C" .-> S3
+    CMD -. "V-09 · outbox (B2)" .-> MQ
+    C3 -. "V-11 · IObjectStorage (Fase C)" .-> S3
 ```
 
 ---
@@ -138,15 +136,16 @@ flowchart TB
 | **V-06** | Operador abre uma solicitação e o Responsável a vê na fila, com o indicador de SLA | RF-02, RF-04, RF-06, DUX-07 | `POST /ofertas/{id}/solicitacoes` → valida pré-condições do tipo, grava `pendente` → aparece em `GET /solicitacoes` e na contagem | `Solicitacao`, `TipoSolicitacao`, `StatusSolicitacao`, `AbrirSolicitacao*`, `ListarFilaValidacao*`, `ContarPendentes*`, migration `Solicitacao` + índice único parcial, `SolicitacoesController` | Solicitar elegibilidade sem os 6 critérios retorna 422; duas solicitações do mesmo tipo retornam 409; solicitação com 25h aparece com `foraDoSla:true`; `/pendentes/contagem` bate com o total da fila | V-05, EN-02 |
 | **V-07** | Responsável aprova e a oferta fica elegível; rejeita e o motivo volta ao operador | RF-02, RF-04, RF-06, RN-05, RN-07, DUX-08 | `POST /solicitacoes/{id}/aprovar` → reavalia critérios, aplica no agregado, registra decisão → `200` | `Solicitacao.Aprovar/Rejeitar`, `AprovarSolicitacao*`, `RejeitarSolicitacao*`, `ObterSolicitacao*`, `AutoAprovacaoException` | Aprovar a própria solicitação retorna 403 mesmo com `estoque:validar`; aprovar elegibilidade muda a situação para `elegivel`; aprovar retirada **não altera** a disponibilidade; rejeitar sem justificativa retorna 400 e o estado vigente não muda | V-06 |
 | **V-08** | Operação reserva, libera e vende um veículo, e a reversão de venda exige validação | RF-05, RN-04, RN-05, RN-08, DP-04, QA-02 | `POST /ofertas/{id}/disponibilidade` → valida transição contra a máquina de estados → `200` com `transicoesPermitidas` atualizadas | `Disponibilidade`, `EstadoDisponibilidade`, `AlterarDisponibilidade*`, `TransicaoInvalidaException` | `vendido → disponivel` direto retorna 422; a mesma transição via solicitação `reversao-venda` aprovada funciona; `reservado` não muda sozinho com o tempo; retirar a oferta não altera o estado | V-07 |
-| **V-09** | Uma aprovação publica o evento correspondente, e um rollback não publica nada | RF-02, RF-04, RF-05, RF-06 · meta de 1 hora | caso de uso → `IIntegrationEventPublisher` dentro da transação do outbox → mensagem em `sbacars.events` | 4 records em `SbaCars.Contracts`, publicação nos handlers de decisão e disponibilidade | Aprovar elegibilidade publica `estoque.oferta-incluida` com `traceparent` correlacionado; exceção após mutar o agregado não publica nada — teste de integração com Testcontainers | V-08, **Fase B2** |
+| **V-09** | Uma aprovação publica o evento correspondente, e um rollback não publica nada | RF-02, RF-04, RF-05, RF-06 · meta de 1 hora | caso de uso → `IIntegrationEventPublisher` dentro da transação do outbox → mensagem em `sbacars.events` | Publicação nos handlers de decisão e disponibilidade, usando os records **já existentes** em `SbaCars.Contracts/Estoque/V1/` | Aprovar elegibilidade publica `estoque.oferta-incluida` com `traceparent` correlacionado; exceção após mutar o agregado não publica nada — teste de integração com Testcontainers | V-08 |
 | **V-10** | D01 obtém as ofertas elegíveis e não vê as demais | RF-06 | `GET /ofertas-elegiveis` com client credentials → projeção sem dados de validação → `200` paginado | `ListarOfertasElegiveis*`, projeção `OfertaElegivel`, `OfertasElegiveisController` | Oferta `suspensa`, `retirada` ou `em-preparacao` não aparece; `atualizadoApos` filtra corretamente; token de operador retorna 403 | V-09, EN-02 |
-| **V-11** | Operador anexa um laudo a um fato e consegue baixá-lo depois | RF-03 | `POST …/evidencias/upload-url` → URL assinada → `PUT` do browser no S3 → `evidenciaId` nos fatos | `Evidencia`, `GerarUrlUpload*`, `GerarUrlDownload*`, `EvidenciasController` | Upload direto do browser funciona; acesso anônimo ao objeto é negado; arquivo de 11 MiB retorna 413; `.exe` retorna 415 | V-04, **Fase C1–C3** |
+| **V-11** | Operador anexa um laudo a um fato e consegue baixá-lo depois | RF-03 | `POST …/evidencias/upload-url` → `IObjectStorage` (Fase C) → URL assinada → `PUT` do browser no S3 → `evidenciaId` nos fatos | `Evidencia`, `GerarUrlUpload*`, `GerarUrlDownload*`, `EvidenciasController` | Upload direto do browser funciona; acesso anônimo ao objeto é negado; arquivo de 11 MiB retorna 413; `.exe` retorna 415 | V-04 |
 
 **O que cada checkpoint ainda não cobre:** até V-08 inclusive, nenhum evento chega ao broker — o
-comportamento é correto dentro do serviço, mas D01 não é notificado. Até V-10, nenhuma evidência
-pode ser anexada — fatos só têm fonte textual, o que é suficiente para elegibilidade (CM-6) mas não
-exercita o RF-03 por inteiro. Nenhum checkpoint anterior ao V-09 prova a meta de "refletido em D01
-em até uma hora".
+comportamento é correto dentro do serviço, mas D01 não é notificado, e nenhum checkpoint anterior
+ao V-09 prova a meta de "refletido em D01 em até uma hora". Até V-10, nenhuma evidência pode ser
+anexada: fatos só têm fonte textual, o que é suficiente para elegibilidade (CM-6) mas não exercita
+o RF-03 por inteiro. A ordem é por valor incremental, não por bloqueio — qualquer fatia poderia ser
+antecipada ao custo de entregar comportamento menos útil antes.
 
 ### Habilitadores inevitáveis
 
@@ -404,14 +403,11 @@ entrada, `Validator`.
 | `.../Contracts/*.cs` | V-01…V-11 | DTO | `dotnet-code-quality` | Request/response espelhando os schemas do contrato |
 | `.../InventoryProblemDetailsExtensions.cs` | V-01 | Config | `dotnet-program-setup` | Registro das 10 exceções no map |
 
-**Contracts (V-09)**
+**Contracts — nada a criar**
 
-| Caminho | Fatia | Tipo | Skills | Descrição |
-|---|---|---|---|---|
-| `backend/src/Contracts/SbaCars.Contracts/Estoque/OfertaIncluidaEvent.cs` | V-09 | Evento | `dotnet-architecture` | `[IntegrationEvent("estoque.oferta-incluida")]` |
-| `.../Estoque/OfertaAtualizadaEvent.cs` | V-09 | Evento | `dotnet-architecture` | idem |
-| `.../Estoque/OfertaRetiradaEvent.cs` | V-09 | Evento | `dotnet-architecture` | idem |
-| `.../Estoque/DisponibilidadeAlteradaEvent.cs` | V-09 | Evento | `dotnet-architecture` | idem |
+Os quatro eventos que o D02 publica **já existem**, entregues na Fase B4. Estão listados em
+"Arquivos de Referência". Criar qualquer coisa aqui duplicaria contrato e quebraria o
+`schema-snapshot.json`.
 
 **Testes**
 
@@ -444,6 +440,9 @@ entrada, `Validator`.
 | `backend/src/BuildingBlocks/SbaCars.BuildingBlocks.Web/ErrorHandling/ExceptionProblemDetailsMap.cs` | Como registrar exceções sem tocar no handler global |
 | `backend/src/BuildingBlocks/SbaCars.BuildingBlocks.Web/Auth/Permissoes.cs` | Vocabulário de permissões e política de nomeação |
 | `backend/src/Contracts/SbaCars.Contracts/IntegrationEventAttribute.cs` | Como nomear evento no fio |
+| `backend/src/Contracts/SbaCars.Contracts/Estoque/V1/*.cs` | **Os quatro eventos que o D02 publica, já entregues na B4.** Carga enxuta: `OfertaId` + `OcorridoEm`, e `Disponibilidade` como string em `DisponibilidadeAlteradaIntegrationEvent` |
+| `backend/src/Contracts/SbaCars.Contracts/schema-snapshot.json` | Snapshot que faz mudança breaking de contrato quebrar o build |
+| `backend/tests/SbaCars.Messaging.IntegrationTests/OutboxTransactionalTests.cs` | Como a B2 prova "rollback não publica" — o teste da V-09 segue o mesmo padrão |
 | `backend/tests/SbaCars.TestKit/` | Fixtures de Postgres, RabbitMQ e JWT de teste |
 | `docs/architecture/backend-foundation.md` §4, §5, §6, §7 | Persistência, autorização, mensageria e storage |
 | `tasks/.../ux-spec.md` | Origem dos estados, critérios e regras de habilitação |
@@ -473,8 +472,7 @@ entrada, `Validator`.
 | `gateway-backoffice` | **não afetado** | Rotas já cobrem `/api/inventory/{**rest}` com policy `Default` | Nenhuma |
 | `catalog-service` (D01) | futuro | Passa a ter fonte de dados real | Fora deste PRD |
 | `apps/backoffice` | modificado | AJ-01…AJ-08 do `ux-spec.md` §9 | TechSpec de frontend |
-| Fase B2 do plano de fundação | **dependência** | V-09 e V-10 param sem ela. Risco **alto para o cronograma** | Sequenciar B2 antes de V-09 |
-| Fase C do plano de fundação | **dependência** | V-11 para sem ela. Risco **baixo**: é a última fatia | Sequenciar C antes de V-11 |
+| Fundação (Fases A–D) | **linha de base** | Concluída antes do início (ADR-008). Risco **baixo**: o que o D02 usa dela está identificado e provado por teste na própria fundação | Nenhuma |
 
 ---
 
@@ -541,23 +539,34 @@ O gate determinístico (`scripts/ai-flow/gate.sh`) roda build, format e a suíte
 8. **V-06 — Solicitação e fila** — depende de 5, 6 e 7. Evidência: fila com SLA e badge corretos.
 9. **V-07 — Decisão** — depende de 8. Evidência: oferta vira elegível; auto-aprovação em 403.
 10. **V-08 — Disponibilidade** — depende de 9. Evidência: reversão de venda só via solicitação.
-11. **Fase B2 (externa)** → **V-09 — Eventos** — depende de 10 e de B2. Evidência: rollback não publica.
+11. **V-09 — Eventos** — depende de 10. Evidência: aprovar publica; rollback não publica.
 12. **V-10 — Feed para D01** — depende de 11 e 7. Evidência: só ofertas elegíveis; token de operador em 403.
-13. **Fase C1–C3 (externa)** → **V-11 — Evidências** — depende de 5 e da Fase C. Evidência: upload direto do browser.
+13. **V-11 — Evidências** — depende de 5. Evidência: upload direto do browser; acesso anônimo negado.
 
-Os passos 2 a 10 são contínuos e não dependem de nada fora do time. O primeiro bloqueio externo
-aparece só no passo 11, com dez comportamentos já entregues.
+A cadeia inteira é contínua e sem dependência externa: a fundação está concluída antes do passo 1
+(ADR-008). Cada passo entrega um comportamento demonstrável e pode passar por implementer → gate
+→ validator sem esperar os seguintes.
 
 ### Dependências Técnicas Bloqueantes
 
-| Dependência | Bloqueia | Estado |
-|---|---|---|
-| **Fase B2** — outbox `Rebus.PostgreSql` + `IUnitOfWork` transacional | V-09, V-10 | ⬜ pendente |
-| **Fase C1–C3** — `BuildingBlocks.Storage`, buckets, CORS | V-11 | ⬜ pendente |
-| **Logto** — scopes `estoque:validar` e `estoque:integrar` | V-06, V-10 | ⬜ a configurar |
+**Nenhuma fatia tem dependência externa.** A ADR-008 estabelece a fundação completa como linha
+de base, e o que o D02 consome dela já está identificado:
 
-Fase B3 (inbox) **não** bloqueia: o D02 não consome nenhum evento na Fase 1, conforme o §7 do
-domain doc.
+| Capacidade da fundação | Usada por | Onde |
+|---|---|---|
+| Outbox transacional (B2) | V-09 | `IUnitOfWork` enlista a transação; publicar é chamada normal |
+| Contratos de evento (B4) | V-09 | `SbaCars.Contracts/Estoque/V1/` — quatro records prontos |
+| `IObjectStorage` (Fase C) | V-11 | `CreateUploadUrlAsync` / `CreateDownloadUrlAsync` |
+| Bucket `sbacars-inventory-docs` (C2) | V-11 | Privado, CORS restrito à origem do SPA |
+
+Resta uma configuração, não uma dependência de código:
+
+| Item | Bloqueia | Estado |
+|---|---|---|
+| **Logto** — scopes `estoque:validar` e `estoque:integrar` (AP-03, AP-04) | V-06, V-10 | ⬜ a configurar |
+
+Fase B3 (inbox) não é usada: o D02 não consome nenhum evento na Fase 1, conforme o §7 do domain
+doc. Ela protege consumidores, e o D02 é apenas produtor.
 
 ---
 
@@ -608,7 +617,7 @@ Documentadas em ADRs, resumidas aqui:
 
 | Risco | Prob. | Mitigação |
 |---|---|---|
-| **B2 atrasar e pressionar por publicar sem outbox** | Média | ADR-004 registra a decisão e o motivo; V-01 a V-08 continuam entregáveis enquanto isso |
+| **Publicar `Disponibilidade` com valor divergente do contrato** | Média | `DisponibilidadeAlteradaIntegrationEvent.Disponibilidade` é `string` sem restrição, e o comentário XML dele cita a prosa acentuada do Domain Doc (`disponível`). O D02 publica os valores do enum do `api-contract.yaml` — `disponivel`, `reservado`, `vendido`, sem acento — e um teste fixa isso |
 | **O dispatcher próprio virar um mini-MediatR** | Média | Superfície mínima congelada em EN-01; qualquer adição exige nova ADR |
 | **Contenção no agregado Oferta** entre Operador e Responsável | Média | Concorrência otimista via `xmin`; conflito vira 409, não last-write-wins |
 | **`AvaliarCriteriosMinimos` divergir do checklist exibido** | Baixa | É o mesmo método, no mesmo objeto; teste de contrato compara `GET` com a avaliação |
@@ -660,10 +669,14 @@ Documentadas em ADRs, resumidas aqui:
 - [ ] **QT-02** — `estoque:validar` deve ser concedida ao papel `operacao` existente ou a um papel
   novo `validacao` no Logto? O §5.4 do plano de fundação mapeia papel → permissão; a resposta
   define se o DUX-03 do UX spec (papéis acumuláveis) é configurável ou fixo.
-- [ ] **QT-03** — A carga dos eventos de integração deve incluir os fatos completos, ou só
-  `OfertaId` + `OcorridoEm`, deixando D01 chamar `GET /ofertas-elegiveis`? Evento gordo acopla;
-  evento magro gera chamada de volta síncrona. Decidir em V-09, com D01 na conversa.
-- [ ] **QT-04** — Confirmar com Infra o prazo da Fase B2, já que ela bloqueia V-09 e V-10.
+- [x] **QT-03 — RESOLVIDA pela Fase B4: carga enxuta.** Os records entregues carregam
+  `OfertaId` + `OcorridoEm` (e `Disponibilidade` no evento de disponibilidade), com o racional
+  no próprio arquivo: *"no vehicle, price, or document fields; those belong to feature PRDs"*.
+  D01 obtém o resto por `GET /ofertas-elegiveis`.
+- [x] **QT-04 — RESOLVIDA:** B2 concluída. Substituída pela premissa da ADR-008.
+- [ ] **QT-05** — A Fase D (deploy no Swarm) é pré-requisito real do D02? A ADR-008 inclui A–D por
+  simplicidade, mas D1–D6 são deploy, não capacidade de domínio. Se a Fase D atrasar, vale reduzir
+  o escopo da premissa para A–C em vez de voltar ao rastreamento fase a fase.
 
 ---
 
@@ -674,7 +687,8 @@ Todas com status `Accepted` em 2026-08-16.
 - [ADR-001: CQRS nativo, sem MediatR, como padrão de caso de uso do D02](adrs/adr-001.md) — escolhido pelos dois sinais da skill que o D02 aciona; define o precedente dos outros três serviços
 - [ADR-002: Oferta e Solicitacao como agregados separados](adrs/adr-002.md) — suspensão atômica dentro de Oferta, fila como projeção cross-oferta
 - [ADR-003: Suspensão de elegibilidade confirmada em duas fases](adrs/adr-003.md) — 409 com `criteriosAfetados` antes de gravar, para nenhuma oferta sair do catálogo em silêncio
-- [ADR-004: Eventos de integração do D02 só depois do outbox (B2)](adrs/adr-004.md) — evento perdido é falha silenciosa; B4 entra no escopo do D02
+- [ADR-004: Eventos de integração do D02 só depois do outbox (B2)](adrs/adr-004.md) — ~~bloqueio fatia-a-fase~~ **substituída pela ADR-008**; o racional (evento perdido é falha silenciosa) permanece válido
+- [ADR-008: Fundação completa como pré-requisito do backend do D02](adrs/adr-008.md) — uma reconciliação em vez de seis; substitui a ADR-004
 
 ---
 

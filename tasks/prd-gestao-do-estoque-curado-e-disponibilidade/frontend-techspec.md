@@ -617,21 +617,22 @@ de runtime.
 9. **M05, M05-b, M06** — depende de 7. Evidência: mutações refletem na T03 sem reload.
 10. **AJ-07/AJ-08 + T07 Fila** — depende de 4. Evidência: fila com SLA e badge da sidebar.
 11. **T08 e T08-b** — depende de 10. Evidência: aprovar atualiza fila e badge juntos.
-12. **Upload de evidência na T04** — depende de 8 e da **Fase C** do backend.
+12. **Upload de evidência na T04** — depende de 8. Evidência: upload direto do browser para o S3.
 
 Os passos 1 a 11 rodam **inteiramente contra o Prism**, sem depender de uma linha do backend. É o
-principal benefício de o contrato ter vindo antes.
+principal benefício de o contrato ter vindo antes. O passo 12 precisa do S3 real — o Prism não
+assina URL — mas a fundação (Fase C) está concluída antes do início do backend (ADR-008).
 
 ### Dependências Técnicas Bloqueantes
 
 | Dependência | Bloqueia | Estado |
 |---|---|---|
 | **AJ-04** — tokens do `DESIGN.md` em `packages/ui` | Fidelidade visual de tudo | ⬜ pendente |
-| **Logto** — scope `estoque:validar` | T07 e T08 com token real | ⬜ a configurar |
-| **Fase C do backend** — storage S3 | Passo 12 | ⬜ pendente |
-| **Backend V-01…V-08** | Substituir o Prism por API real | ⬜ em andamento |
+| **Logto** — scope `estoque:validar` (AP-03) | T07 e T08 com token real | ⬜ a configurar |
+| **Backend V-11** | Passo 12 com S3 real | ⬜ pendente |
 
-Nada bloqueia o início: o passo 1 pode começar hoje contra o contrato.
+Nada bloqueia o início: o passo 1 pode começar hoje contra o contrato. Os passos 1 a 11 não
+dependem do backend em momento algum.
 
 ---
 
@@ -711,7 +712,8 @@ Nada bloqueia o início: o passo 1 pode começar hoje contra o contrato.
 - [ADR-001: CQRS nativo, sem MediatR](adrs/adr-001.md) — padrão de caso de uso do D02
 - [ADR-002: Oferta e Solicitacao como agregados separados](adrs/adr-002.md) — fronteiras de consistência
 - [ADR-003: Suspensão de elegibilidade confirmada em duas fases](adrs/adr-003.md) — **o frontend implementa a outra ponta deste protocolo**
-- [ADR-004: Eventos de integração só depois do outbox](adrs/adr-004.md) — sem efeito no frontend
+- [ADR-004: Eventos de integração só depois do outbox](adrs/adr-004.md) — substituída pela ADR-008; sem efeito no frontend
+- [ADR-008: Fundação completa como pré-requisito do backend do D02](adrs/adr-008.md) — remove a Fase C como bloqueio do passo 12
 
 ### Criadas nesta sessão (frontend)
 
