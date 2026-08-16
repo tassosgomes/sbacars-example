@@ -1073,18 +1073,11 @@ Cada passo termina com algo verificável. Nada de "passo de infraestrutura sem p
 | A6b | Ligar `Infrastructure` na DI dos quatro `Api` e fechar a pendência da §5.7: flush da auditoria no fim da requisição | Leitura puramente de leitura, sem `SaveChanges`, gera linha de auditoria — provado por teste | ✅ concluída |
 | A7 | Gateways YARP: rotas, CORS, rate limit, validação de token no edge de backoffice | Os dois SPAs alcançam o backend pelos ports atuais, sem mudar `runtimeConfig` | ✅ concluída |
 | A8 | Observabilidade: OTel, health checks, Aspire Dashboard | Requisição do SPA aparece como um trace único atravessando gateway e serviço | ✅ concluída |
-| A9 | `TestKit`, testes de arquitetura, gate de CI atualizado | Referência de projeto indevida entre serviços quebra o build | ⬜ pendente |
+| A9 | `TestKit`, testes de arquitetura, gate de CI atualizado | Referência de projeto indevida entre serviços quebra o build | ✅ concluída |
 
-Dois débitos pequenos a endereçar em A9, ambos de código de teste: cobrir o executável do `Migrator`
-no gate (hoje o teste chama `MigrateAsync` direto, e o binário só foi verificado à mão), e dar ao
-`DbContext` de sondagem um `IModelCacheKeyFactory` que inclua o schema — o cache de modelo do EF é
-indexado pelo tipo CLR, então dois testes paralelos com schemas diferentes sobre o mesmo contexto
-disputam o modelo compilado. A6b contornou usando o mesmo schema nos dois, o que resolve hoje e
-volta a quebrar no primeiro teste que precisar de outro.
-
-**Estado em 2026-08-16:** A1 a A8 entregues e verificadas — 36 projetos, `dotnet build` e
-`dotnet format` limpos, 128 testes passando no backend; `typecheck`, `lint`, `test` e `build`
-limpos no frontend. Logto provisionado e com login do backoffice validado
+**Estado em 2026-08-16:** A1 a A9 entregues e verificadas — a Fase A está completa. 37 projetos,
+`dotnet build` e `dotnet format` limpos, 136 testes passando no backend; `typecheck`, `lint`,
+`test` e `build` limpos no frontend. Logto provisionado e com login do backoffice validado
 ponta a ponta; o bootstrap foi executado duas vezes para provar idempotência. Os quatro `Api` têm
 endpoints de prova (`/api/_probe/whoami`) marcados como andaimes de A6, a remover quando as features
 reais chegarem. `BuildingBlocks.Observability` deixou de conter só o mecanismo de sanitização: a A8
@@ -1099,8 +1092,9 @@ que só entra no dia em que um serviço introduz sua primeira entidade sensível
 `ICurrentUser` tem registro concreto desde A6; `IClock` continua sem registro concreto nos quatro
 serviços reais (só nos testes), porque nada nos quatro serviços o resolve ainda — entra junto com o
 interceptor no dia em que um deles precisar. O `Migrator` de cada serviço foi verificado à mão
-contra o Postgres do compose, mas o teste automatizado chama `MigrateAsync` direto — cobrir o
-executável no gate fica para A9.
+contra o Postgres do compose até aqui; A9 cobriu o executável real de `inventory-migrator` no gate
+(os quatro compartilham o mesmo `Program.cs`), lançando-o como processo filho contra o Postgres de
+teste — ver §12 abaixo.
 
 A7 ligou YARP nos dois gateways sobre o pipeline que já existia. Convenção de path única para os
 dois edges: `/api/<serviço>/{**rest}` no gateway vira `/api/{**rest}` no serviço, via
@@ -1205,8 +1199,63 @@ injetado diretamente). Como a instrumentação ASP.NET Core/HttpClient do OpenTe
 concorrentes não poluam as atividades exportadas um do outro.
 
 Fica fora, deliberadamente: health check de RabbitMQ/S3/Redis (B, C, D6); `ForwardedHeaders` no
-`gateway-public` propriamente dito (D2, quando existir um LB de borda de verdade no Swarm); e a
-dívida já registrada da A9 sobre cobrir o executável do `Migrator` no gate, que esta fase não tocou.
+`gateway-public` propriamente dito (D2, quando existir um LB de borda de verdade no Swarm).
+
+A9 fechou a Fase A com três entregas. **`SbaCars.TestKit`** (`backend/tests/SbaCars.TestKit/`)
+consolidou `TestHostFactory` — literalmente duplicado, byte a byte, entre
+`BuildingBlocks.Web.Tests` e `BuildingBlocks.Observability.Tests` — no segundo consumidor real, e
+também passou a conter `TestJwt` e `SbaCarsPostgresFixture`, que tinham um único consumidor cada
+mas já eram nomeados explicitamente pela §3.1 como conteúdo do TestKit; o `<remarks>` de cada tipo
+registra por que a extração aconteceu apesar do critério de "segundo consumidor" não estar
+satisfeito por contagem. Deliberadamente **não** movidos: `SbaCarsPostgresCollection` (a definição
+`[CollectionDefinition]` do xUnit precisa viver no mesmo assembly de teste que a consome — não é
+código compartilhável, é registro por assembly), `DestinationStub`/`InstrumentedDestinationStub`
+(específicos da fiação YARP do `Gateway.Tests`, sem consumidor fora dele) e `FakeClock`/
+`FakeCurrentUser` (só usados dentro de `Persistence.IntegrationTests/Auditing`, sem duplicata real
+em outro projeto). **Testes de arquitetura** — `SbaCars.Architecture.Tests` ganhou três arquivos
+novos, todos lendo o grafo de `ProjectReference` direto dos `.csproj` via
+`ProjectReferenceGraph` (mesma mecânica de varredura de texto que os três arquivos de A6/A7/A8 já
+usavam, sem carregar assembly nenhum): `ServiceIsolationTests` prova que nenhum serviço referencia
+projeto de outro serviço e que nenhum gateway referencia projeto de serviço, andando pelo
+fecho transitivo, não só pela aresta direta; `LayerPurityTests` prova que `.Domain` e
+`.Application` nunca alcançam EF Core nem ASP.NET Core, direto ou por trás de um
+`ProjectReference` para `BuildingBlocks.Persistence`/`.Web`; `DbContextContainmentTests` prova que
+todo `DbContext` concreto (não abstrato) mora só em projeto `*.Infrastructure` — via varredura de
+texto com regex sobre declaração de classe, não NetArchTest/ArchUnitNET (avaliadas e descartadas:
+a distinção abstrato/concreto exigiria refletir sobre assembly compilado, dando a este projeto de
+teste uma dependência de caminho de build que a varredura de `.csproj`/`.cs` não precisa). As três
+regras já existentes (`AuthorizationVocabularyTests`, `ReverseProxyContainmentTests`,
+`ObservabilityContainmentTests`) continuam de pé, sem duplicação com o código novo. Cada regra nova
+foi provada falhando de propósito — uma `ProjectReference` cruzando serviço, um `DbContext`
+concreto fora de Infrastructure — antes de reverter a violação; nenhuma revelou problema real em
+código de produção já existente. De caminho, A9 também pagou os dois débitos do §12: o
+`IModelCacheKeyFactory` da sondagem de teste passou a incluir o schema
+(`SchemaAwareModelCacheKeyFactory`, ligado uma vez em `UseSbaCarsNpgsql` — vale para os quatro
+serviços reais também, não só para teste), provado por um teste com dois schemas distintos sobre o
+mesmo `DbContext` que antes não podia ser escrito corretamente; e o executável do
+`inventory-migrator` (representativo dos quatro, que compartilham o mesmo `Program.cs`) passou a
+rodar de verdade como processo filho contra o Postgres de teste, sucesso e falha de configuração,
+em vez de só `MigrateAsync` in-process. O **gate** vive em `scripts/ai-flow/gate.sh` (criado pela
+skill `tsg-flow-gate-creator`) e roda, por padrão, validação completa — `dotnet format
+--verify-no-changes`, `dotnet build`, `dotnet test` no backend inteiro, mais `npm run
+typecheck/lint/test/build` nos workspaces do frontend — porque este repositório ainda não tem
+tasks do TSG Flow em andamento; o modo `--filter`/`--base` fica pronto para quando esse pipeline
+entrar em uso, escopando format e testes por task. O `dotnet test` do gate roda com `-m:1`, o que
+serializa os projetos de teste: três deles usam Testcontainers, e cada processo de teste sobe o
+ResourceReaper (Ryuk) no arranque — com dois processos subindo ao mesmo tempo, a criação do
+container do Ryuk corre entre si e falha de forma intermitente (`Could not find resource
+'DockerContainer'`), reprovando o gate sobre código correto. Custa ~50s de tempo de parede, porque
+a suíte já é dominada por um único projeto que sobe o Logto. `.github/workflows/ci.yml` chama esse
+mesmo script em todo push/PR para `main`, em `ubuntu-latest` (Docker já disponível para os
+Testcontainers), com .NET e Node fixados.
+
+Com A9, a Fase A está completa: 37 projetos, 136 testes, fronteira de serviço agora verificada por
+teste de arquitetura (não só por convenção), gate único cobrindo os dois stacks e rodando em CI. A
+Fase B encontra pronta a base de persistência (schema, role, `DbContext`, Migrator testado como
+processo real), autenticação/autorização por permissão, os dois gateways roteando, observabilidade
+ponta a ponta e um gate que quebra o build se um serviço vazar para outro — e encontra em aberto,
+por não ser escopo da fundação, tudo que B1-B7 endereçam: `BuildingBlocks.Messaging` em si, outbox,
+inbox/idempotência, `SbaCars.Contracts`, saga e timeout persistidos.
 
 ### Fase B — Mensageria
 

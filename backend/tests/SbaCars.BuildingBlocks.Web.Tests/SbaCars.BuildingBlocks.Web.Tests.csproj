@@ -26,6 +26,8 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Domain\SbaCars.BuildingBlocks.Domain.csproj" />
     <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Web\SbaCars.BuildingBlocks.Web.csproj" />
+    <!-- A9 — TestHostFactory and TestJwt, consolidated into SbaCars.TestKit. -->
+    <ProjectReference Include="..\SbaCars.TestKit\SbaCars.TestKit.csproj" />
   </ItemGroup>
 
 </Project>

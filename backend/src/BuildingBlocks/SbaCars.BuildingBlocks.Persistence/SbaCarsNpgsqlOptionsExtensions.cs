@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 
 namespace SbaCars.BuildingBlocks.Persistence;
 
@@ -36,7 +37,12 @@ public static class SbaCarsNpgsqlOptionsExtensions
                 npgsql.MigrationsHistoryTable(SbaCarsDbContext.MigrationsHistoryTableName, schema);
                 npgsql.EnableRetryOnFailure();
             })
-            .UseSnakeCaseNamingConvention();
+            .UseSnakeCaseNamingConvention()
+            // §12 debt, closed in A9: the default model cache key is keyed by DbContext CLR type
+            // alone, so two instances of the same SbaCarsDbContext subclass built for different
+            // schemas would silently share one compiled model. See
+            // SchemaAwareModelCacheKeyFactory's remarks.
+            .ReplaceService<IModelCacheKeyFactory, SchemaAwareModelCacheKeyFactory>();
 
         return optionsBuilder;
     }

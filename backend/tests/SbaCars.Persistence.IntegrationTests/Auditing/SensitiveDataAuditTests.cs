@@ -3,6 +3,7 @@ using AwesomeAssertions;
 using Microsoft.EntityFrameworkCore;
 using SbaCars.BuildingBlocks.Persistence;
 using SbaCars.BuildingBlocks.Persistence.Auditing;
+using SbaCars.TestKit;
 using Xunit;
 
 namespace SbaCars.Persistence.IntegrationTests.Auditing;

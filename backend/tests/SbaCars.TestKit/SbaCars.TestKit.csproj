@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- A library, not a test project of its own: no Microsoft.NET.Test.Sdk, no test runner.
+         Referenced by every backend test project that needs an in-process ASP.NET Core host, a
+         test-signed JWT, or a real Postgres via Testcontainers (§3.1, §9 of the architecture plan).
+         IsTestProject must be explicit and false: the xunit PackageReference below (needed for
+         SbaCarsPostgresFixture's IAsyncLifetime) is otherwise enough for `dotnet test` to try to
+         launch this assembly as its own test host, which fails — it has no xunit.runner and no
+         test to run. -->
+    <IsPackable>false</IsPackable>
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Plain Sdk (not Sdk.Web): a referenced library, not an entry-point host — same reasoning
+         as SbaCars.BuildingBlocks.Web. Gives TestHostFactory access to WebApplication/TestServer
+         and TestJwt access to Microsoft.IdentityModel.* (bundled with the shared framework)
+         without either needing its own explicit PackageReference. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Npgsql" />
+    <!-- SbaCarsPostgresFixture implements Xunit.IAsyncLifetime, so this library needs the xunit
+         package itself, not just the projects that consume it. Its own [CollectionDefinition]
+         stays local to each consuming test assembly — see SbaCarsPostgresCollection's remarks in
+         SbaCars.Persistence.IntegrationTests for why that piece cannot move here. -->
+    <PackageReference Include="xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- TestJwt.Create signs tokens with the same audience AuthExtensions.AddSbaCarsAuth
+         validates against, so the two can never drift silently. -->
+    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Web\SbaCars.BuildingBlocks.Web.csproj" />
+  </ItemGroup>
+
+</Project>

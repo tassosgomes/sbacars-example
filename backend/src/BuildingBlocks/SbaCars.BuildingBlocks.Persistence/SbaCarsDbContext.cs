@@ -25,6 +25,16 @@ public abstract class SbaCarsDbContext : DbContext
     private readonly string _schema;
     private readonly SensitiveDataAuditInterceptor? _sensitiveDataAuditInterceptor;
 
+    /// <summary>
+    /// The schema this context instance was built for. Exposed so
+    /// <see cref="SchemaAwareModelCacheKeyFactory"/> can key EF Core's compiled-model cache by
+    /// schema, not just by CLR type — see that type's remarks for why this matters. Named
+    /// <c>ModelSchema</c> rather than <c>Schema</c> because every concrete subclass already
+    /// exposes its own <c>public const string Schema</c> (the per-service schema name constant
+    /// passed to this base's constructor), and a same-named instance property would hide it.
+    /// </summary>
+    public string ModelSchema => _schema;
+
     protected SbaCarsDbContext(DbContextOptions options, string schema)
         : this(options, schema, sensitiveDataAuditInterceptor: null)
     {
