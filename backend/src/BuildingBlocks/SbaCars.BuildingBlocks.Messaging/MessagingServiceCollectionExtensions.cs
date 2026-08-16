@@ -1,18 +1,22 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using OpenTelemetry.Trace;
 using RabbitMQ.Client;
 using Rebus.Config;
+using Rebus.Config.Outbox;
 using Rebus.Pipeline;
 using Rebus.Pipeline.Receive;
 using Rebus.Pipeline.Send;
+using Rebus.PostgreSql;
 using Rebus.Retry.Simple;
 using Rebus.Topic;
 using SbaCars.BuildingBlocks.Application;
 using SbaCars.BuildingBlocks.Messaging.CloudEvents;
 using SbaCars.BuildingBlocks.Messaging.Topology;
 using SbaCars.BuildingBlocks.Messaging.Tracing;
+using SbaCars.BuildingBlocks.Persistence;
 
 namespace SbaCars.BuildingBlocks.Messaging;
 
@@ -34,11 +38,20 @@ public static class MessagingServiceCollectionExtensions
     /// broker's management UI can tell which process a connection belongs to), and as the CloudEvents
     /// <c>ce_source</c> value (D7: <c>urn:sbacars:{serviceName}</c>).
     /// </param>
+    /// <param name="outboxSchema">
+    /// When set, enables Rebus's PostgreSQL outbox in this schema (<c>{outboxSchema}.outbox</c>,
+    /// §6.2). Requires <see cref="PersistenceOptions"/> to be registered with a non-empty connection
+    /// string before this call. When <see langword="null"/>, messaging behaves like B1 — direct
+    /// publish with no outbox forwarder (so RabbitMQ-only integration tests need no Postgres).
+    /// </param>
     public static IServiceCollection AddSbaCarsMessaging(
         this IServiceCollection services,
         IConfiguration configuration,
-        string serviceName)
+        string serviceName,
+        string? outboxSchema = null)
     {
+        services.TryAddScoped<IOutboxTransaction, NoOpOutboxTransaction>();
+
         services.AddOptions<MessagingOptions>()
             .Bind(configuration.GetSection(MessagingOptions.SectionName))
             .ValidateDataAnnotations()
@@ -48,6 +61,22 @@ public static class MessagingServiceCollectionExtensions
         services.AddRebus((configure, provider) =>
         {
             var options = provider.GetRequiredService<IOptions<MessagingOptions>>().Value;
+
+            if (outboxSchema is not null)
+            {
+                var persistence = provider.GetService<IOptions<PersistenceOptions>>()?.Value;
+                if (persistence is null || string.IsNullOrWhiteSpace(persistence.ConnectionString))
+                {
+                    throw new InvalidOperationException(
+                        "Outbox was requested (outboxSchema is set) but Persistence:ConnectionString is missing or empty. " +
+                        "Register persistence options before AddSbaCarsMessaging.");
+                }
+
+                configure = configure.Outbox(o =>
+                    o.StoreInPostgreSql(
+                        persistence.ConnectionString,
+                        new TableName(outboxSchema, "outbox")));
+            }
 
             return configure
                 .Transport(t => t.UseRabbitMq(options.ConnectionString, options.InputQueueName)

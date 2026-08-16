@@ -13,19 +13,16 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="AwesomeAssertions" />
-    <!-- PublishTraceContinuityTests builds its own TracerProvider (no ASP.NET Core/Observability
-         building block involved here) to capture the spans TracingOutgoingStep/TracingIncomingStep
-         start — the same idiom SbaCars.Gateway.Tests uses. -->
     <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Plain Microsoft.Extensions.DependencyInjection + Rebus.ServiceProvider's own
-         ServiceProviderExtensions.StartHostedServices (both already flow transitively from
-         SbaCars.BuildingBlocks.Messaging below) are enough to boot a real bus in-process — no
-         ASP.NET Core TestServer/WebApplication needed, unlike most other integration test projects
-         in this solution. -->
     <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Messaging\SbaCars.BuildingBlocks.Messaging.csproj" />
+    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Persistence\SbaCars.BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\Inventory\SbaCars.Inventory.Infrastructure\SbaCars.Inventory.Infrastructure.csproj" />
     <ProjectReference Include="..\SbaCars.TestKit\SbaCars.TestKit.csproj" />
   </ItemGroup>
 

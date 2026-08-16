@@ -18,7 +18,7 @@ builder.Services.AddSbaCarsOpenApi();
 builder.Services.AddSbaCarsAuth(builder.Configuration, builder.Environment);
 builder.Services.AddInventoryInfrastructure(builder.Configuration);
 builder.Services.AddSbaCarsObservability(builder.Configuration, "inventory-service");
-builder.Services.AddSbaCarsMessaging(builder.Configuration, "inventory-service");
+builder.Services.AddSbaCarsMessaging(builder.Configuration, "inventory-service", InventoryDbContext.Schema);
 builder.Services.AddSbaCarsForwardedHeaders();
 builder.Services.AddSbaCarsRuntimeReadiness(builder.Configuration);
 builder.Services.AddSbaCarsHealthChecks()

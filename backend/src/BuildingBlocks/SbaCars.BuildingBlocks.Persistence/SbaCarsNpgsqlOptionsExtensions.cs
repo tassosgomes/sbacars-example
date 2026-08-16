@@ -16,10 +16,8 @@ public static class SbaCarsNpgsqlOptionsExtensions
     /// </summary>
     /// <remarks>
     /// Retry-on-failure is enabled here and nowhere combines it with an explicit transaction
-    /// outside of an <see cref="Microsoft.EntityFrameworkCore.Storage.IExecutionStrategy"/> — the
-    /// one operation this base performs is <c>SaveChangesAsync</c>, which EF Core already wraps
-    /// in the context's execution strategy. A future explicit transaction (e.g. to enlist the
-    /// outbox in Phase B) must be opened through
+    /// outside of an <see cref="Microsoft.EntityFrameworkCore.Storage.IExecutionStrategy"/>.
+    /// <c>EfUnitOfWork</c> (B2) opens the outbox transaction through
     /// <c>Database.CreateExecutionStrategy().ExecuteAsync(...)</c>, never with
     /// <c>BeginTransactionAsync</c> called directly against a retrying context.
     /// </remarks>

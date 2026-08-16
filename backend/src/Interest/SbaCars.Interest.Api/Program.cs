@@ -18,7 +18,7 @@ builder.Services.AddSbaCarsOpenApi();
 builder.Services.AddSbaCarsAuth(builder.Configuration, builder.Environment);
 builder.Services.AddInterestInfrastructure(builder.Configuration);
 builder.Services.AddSbaCarsObservability(builder.Configuration, "interest-service");
-builder.Services.AddSbaCarsMessaging(builder.Configuration, "interest-service");
+builder.Services.AddSbaCarsMessaging(builder.Configuration, "interest-service", InterestDbContext.Schema);
 builder.Services.AddSbaCarsForwardedHeaders();
 builder.Services.AddSbaCarsRuntimeReadiness(builder.Configuration);
 builder.Services.AddSbaCarsHealthChecks()

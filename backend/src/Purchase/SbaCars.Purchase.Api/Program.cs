@@ -18,7 +18,7 @@ builder.Services.AddSbaCarsOpenApi();
 builder.Services.AddSbaCarsAuth(builder.Configuration, builder.Environment);
 builder.Services.AddPurchaseInfrastructure(builder.Configuration);
 builder.Services.AddSbaCarsObservability(builder.Configuration, "purchase-service");
-builder.Services.AddSbaCarsMessaging(builder.Configuration, "purchase-service");
+builder.Services.AddSbaCarsMessaging(builder.Configuration, "purchase-service", PurchaseDbContext.Schema);
 builder.Services.AddSbaCarsForwardedHeaders();
 builder.Services.AddSbaCarsRuntimeReadiness(builder.Configuration);
 builder.Services.AddSbaCarsHealthChecks()

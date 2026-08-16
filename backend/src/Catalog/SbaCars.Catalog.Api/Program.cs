@@ -18,7 +18,7 @@ builder.Services.AddSbaCarsOpenApi();
 builder.Services.AddSbaCarsAuth(builder.Configuration, builder.Environment);
 builder.Services.AddCatalogInfrastructure(builder.Configuration);
 builder.Services.AddSbaCarsObservability(builder.Configuration, "catalog-service");
-builder.Services.AddSbaCarsMessaging(builder.Configuration, "catalog-service");
+builder.Services.AddSbaCarsMessaging(builder.Configuration, "catalog-service", CatalogDbContext.Schema);
 builder.Services.AddSbaCarsForwardedHeaders();
 builder.Services.AddSbaCarsRuntimeReadiness(builder.Configuration);
 builder.Services.AddSbaCarsHealthChecks()
