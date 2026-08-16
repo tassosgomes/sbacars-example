@@ -1270,7 +1270,7 @@ inbox/idempotência, `SbaCars.Contracts`, saga e timeout persistidos.
 |---|---|---|---|
 | B1 | `BuildingBlocks.Messaging`: Rebus + RabbitMQ, topologia, envelope CloudEvents, retry/second-level/error queue, spans OTel | Serviço sobe, declara a topologia e a publicação aparece no trace | ✅ concluída |
 | B2 | Outbox do `Rebus.PostgreSql` por serviço + `IUnitOfWork` que enlista a transação do EF | Rollback de transação não publica evento — provado por teste | ✅ concluída |
-| B3 | Inbox/idempotência própria (step de pipeline + tabela `inbox_message`) | Reentrega do mesmo `message_id` não duplica efeito — provado por teste | ⬜ pendente |
+| B3 | Inbox/idempotência própria (step de pipeline + tabela `inbox_message`) | Reentrega do mesmo `message_id` não duplica efeito — provado por teste | ✅ concluída |
 | B4 | `SbaCars.Contracts` com os eventos dos Domain Docs + snapshot de schema | Mudança breaking em contrato quebra o build | ⬜ pendente |
 | B5 | Prova `foundation.ping` inventory → catalog | Teste de integração cobre outbox → broker → inbox, com trace correlacionado | ⬜ pendente |
 | B6 | Saga e timeout persistidos no PostgreSQL habilitados e provados (capacidade exigida pela reserva de D04, §2.5) | Saga sobrevive a restart do processo e um timeout dispara depois de reinício — provado por teste | ⬜ pendente |
@@ -1373,6 +1373,33 @@ também não publica (eventos só staged em memória).
 terceira conexão AMQP). `TracingOutgoingStep` permanece — forwarder sem activity ambiente continua
 coberto. Deliberadamente fora: B3–B7 (inbox, contratos de negócio, `foundation.ping`, saga/timeout,
 expurgo).
+
+**Estado em 2026-08-16 (B3):** inbox/idempotência entregue e verificado. Habilitada pelo mesmo
+`outboxSchema` passado a `AddSbaCarsMessaging` — quando omitido, o comportamento permanece o de
+B1/B2 sem inbox (testes só-RabbitMQ continuam sem Postgres). A tabela `{schema}.inbox_message`
+(`message_id`, `consumer`, `processed_at`, PK composta) é criada pelas migrations (`own_*`, DDL) em
+cada serviço; o runtime com `svc_*` encontra a tabela já existente.
+
+O step `InboxDeduplicationIncomingStep` roda **depois** de `DeserializeIncomingMessageStep` e
+**antes** do dispatch — `TracingIncomingStep` permanece **antes** da deserialização para que a
+tentativa duplicada ainda apareça no trace, mas o handler não executa de novo. Deduplicação usa
+`Headers.MessageId` (`rbs2-msg-id`, o mesmo valor que `ce_id` carrega no fio). `consumer` é o
+`serviceName` do processo (`"inventory-service"`, etc.), não o nome do handler — fan-out exige a
+chave composta `(message_id, consumer)`.
+
+Política **process-then-record**: EXISTS antes do handler; se já processado, descarta e incrementa
+`messaging.inbox.duplicates_discarded` no meter `SbaCars.Messaging`; senão executa o handler e só
+grava no inbox após sucesso — falha do handler não grava (retry/second-level/error queue intactos);
+violação de unique no INSERT pós-sucesso é corrida benigna, contabilizada, ACK normal. Acesso via
+`NpgsqlInboxStore` direto (não é entidade EF), mesma connection string de `Persistence`.
+
+Prova de prontidão: `InboxIdempotencyTests` (Postgres + RabbitMQ) — mesmo `message_id` publicado
+duas vezes executa o efeito do handler uma vez e deixa uma linha em `inventory.inbox_message`;
+`message_id` distinto ainda processa; handler que falha não grava inbox e a entrega bem-sucedida
+posterior grava uma vez; redelivery após sucesso é deduplicada. `InboxSchemaTests` confirma
+`inventory.inbox_message` e que `svc_catalog` não lê o schema alheio. Testes B1/B2 seguem verdes
+(inbox opt-in com schema). Deliberadamente fora: B4–B7 (contratos de negócio, `foundation.ping`,
+saga/timeout, expurgo de 7 dias).
 
 ### Fase C — Storage
 

@@ -14,6 +14,9 @@
          transitively via Persistence. Pinning the reference here keeps that compile-time
          dependency explicit. -->
     <PackageReference Include="Rebus.PostgreSql" />
+    <!-- B3 — NpgsqlInboxStore talks to {schema}.inbox_message directly (same pattern as B2 pinning
+         Rebus.PostgreSql for outbox). -->
+    <PackageReference Include="Npgsql" />
     <PackageReference Include="RabbitMQ.Client" />
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
