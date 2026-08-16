@@ -595,17 +595,37 @@ pouco agora e são caros de retrofitar depois, então entram na fundação mesmo
   registro é um vazamento que ninguém consegue investigar. A tabela de auditoria e o interceptor que
   a alimenta ficam em `BuildingBlocks.Persistence` desde a Fase A, usados por D03 e, depois, por D04.
 
-  > **Pendência aberta em A4b, a fechar quando os serviços forem ligados (A6/A7).** Auditar leitura
-  > em EF Core exige interceptar a materialização da entidade, e não é possível gravar no banco de
-  > dentro desse ponto — o reader ainda está aberto na conexão. A implementação bufferiza as leituras
-  > por `DbContext` e as grava no próximo `SaveChanges` ou em um flush explícito. Consequência: uma
-  > operação **puramente de leitura** não gera linha de auditoria se ninguém der flush — e abrir a
-  > tela de um dossiê é exatamente isso. O `Repository.FindAsync` faz o flush, mas consulta LINQ ad
-  > hoc fora dele perde o registro. **A correção é um flush no fim da requisição**, aproveitando que
-  > o `DbContext` é scoped: um middleware garante a gravação independentemente de quem escreveu a
-  > consulta. Limitações que permanecem por natureza da abordagem, documentadas no código: projeção
-  > com `Select` anônimo e SQL cru lido como escalar não materializam a entidade e, portanto, nunca
-  > geram auditoria.
+  > **Pendência aberta em A4b, fechada em A6b.** Auditar leitura em EF Core exige interceptar a
+  > materialização da entidade, e não é possível gravar no banco de dentro desse ponto — o reader
+  > ainda está aberto na conexão. A implementação bufferiza as leituras por `DbContext` e as grava
+  > no próximo `SaveChanges` ou em um flush explícito. Consequência: uma operação **puramente de
+  > leitura** não gerava linha de auditoria se ninguém desse flush — e abrir a tela de um dossiê é
+  > exatamente isso. O `Repository.FindAsync` já fazia o flush, mas consulta LINQ ad hoc fora dele
+  > perdia o registro.
+  >
+  > **A correção, em A6b:** um `SensitiveDataAuditFlushMiddleware` em `BuildingBlocks.Web`,
+  > registrado depois de `UseExceptionHandler` e antes de `UseSbaCarsAuth`, que flusha em um bloco
+  > `finally` ao redor do resto do pipeline — cobrindo tanto a resposta bem-sucedida quanto a
+  > requisição que termina em exceção, porque o `finally` roda nos dois casos antes de o handler de
+  > exceção converter a falha em ProblemDetails. O middleware não conhece EF Core nem `DbContext`:
+  > depende só de `ISensitiveDataAuditFlusher` (`BuildingBlocks.Application`), uma abstração de uma
+  > operação — `FlushAsync` — que `BuildingBlocks.Persistence` implementa por `DbContext` e cada
+  > serviço registra em seu `Add<Serviço>Infrastructure` com
+  > `AddSbaCarsSensitiveDataAuditFlusher<TContext>()`. Como o `DbContext` é scoped por requisição,
+  > o flusher resolvido pelo middleware é sempre o mesmo contexto que a requisição usou para ler.
+  > Falha ao gravar a auditoria é capturada e registrada em log de erro com o `traceId` da
+  > requisição, mas nunca propagada: uma auditoria quebrada não pode transformar uma resposta já
+  > bem-sucedida em 500, mas também não pode desaparecer em silêncio — vira um incidente operável
+  > via log, não um gap mudo. Os quatro serviços já chamam `AddSbaCarsSensitiveDataAuditFlusher`
+  > (hoje um no-op, porque nenhum dos quatro tem `ISensitiveDataEntity` ainda), então nenhum serviço
+  > futuro precisa lembrar de ligar o mecanismo no dia em que introduzir sua primeira entidade
+  > sensível — só marcar a entidade e passar o interceptor para o `DbContext`.
+  >
+  > **O que continua descoberto, por natureza da abordagem — não fechado por A6b:** projeção com
+  > `Select` anônimo e SQL cru lido como escalar não materializam a entidade e, portanto, nunca
+  > passam pelo `IMaterializationInterceptor` nem geram auditoria, flush ou não. Isso está
+  > documentado no código (`SensitiveDataAuditInterceptor`) e continua sendo responsabilidade de
+  > quem escrever esse tipo de consulta sobre uma entidade sensível auditar o acesso manualmente.
 - **Sanitização em log, trace e evento.** A regra "nenhum dado pessoal em log" já existia para D03;
   com CPF e renda ela vira mecanismo, não recomendação: atributo de marcação nos DTOs sensíveis e um
   processador que os remove antes de sair para o exportador OTLP. Vale também para o **payload dos
@@ -1040,20 +1060,36 @@ Cada passo termina com algo verificável. Nada de "passo de infraestrutura sem p
 | A4b | Trilha de auditoria de acesso a dado sensível + sanitização em log/trace/evento (§5.7) | Leitura de registro marcado como sensível gera linha de auditoria; campo marcado não aparece no exportador OTLP | ✅ concluída |
 | A5 | Logto no compose (+ banco `logto` e seed), script de bootstrap idempotente da §5.1, `oidcConfig.ts` repontado; `infra/keycloak/` removido | Base limpa: `compose up` + bootstrap deixam o backoffice logando, e o token traz `aud: https://api.sbacars.app` com os scopes do papel | ✅ concluída |
 | A6 | JwtBearer + default-deny em todos os serviços; `ClaimsTransformation` projetando `scope` em permissões; `ICurrentUser` com permissões | Endpoint protegido: 401 sem token, 403 sem permissão, 200 com permissão. Teste de arquitetura falha se aparecer `[Authorize(Roles=...)]` ou `IsInRole` | ✅ concluída |
-| A6b | Ligar `Infrastructure` na DI dos quatro `Api` e fechar a pendência da §5.7: flush da auditoria no fim da requisição | Leitura puramente de leitura, sem `SaveChanges`, gera linha de auditoria — provado por teste | ⬜ pendente |
+| A6b | Ligar `Infrastructure` na DI dos quatro `Api` e fechar a pendência da §5.7: flush da auditoria no fim da requisição | Leitura puramente de leitura, sem `SaveChanges`, gera linha de auditoria — provado por teste | ✅ concluída |
 | A7 | Gateways YARP: rotas, CORS, rate limit, validação de token no edge de backoffice | Os dois SPAs alcançam o backend pelos ports atuais, sem mudar `runtimeConfig` | ⬜ pendente |
 | A8 | Observabilidade: OTel, health checks, Aspire Dashboard | Requisição do SPA aparece como um trace único atravessando gateway e serviço | ⬜ pendente |
 | A9 | `TestKit`, testes de arquitetura, gate de CI atualizado | Referência de projeto indevida entre serviços quebra o build | ⬜ pendente |
 
-**Estado em 2026-08-15:** A1 a A6 entregues e verificadas — 33 projetos, `dotnet build` e
-`dotnet format` limpos, 93 testes passando. Logto provisionado e com login do backoffice validado
+Dois débitos pequenos a endereçar em A9, ambos de código de teste: cobrir o executável do `Migrator`
+no gate (hoje o teste chama `MigrateAsync` direto, e o binário só foi verificado à mão), e dar ao
+`DbContext` de sondagem um `IModelCacheKeyFactory` que inclua o schema — o cache de modelo do EF é
+indexado pelo tipo CLR, então dois testes paralelos com schemas diferentes sobre o mesmo contexto
+disputam o modelo compilado. A6b contornou usando o mesmo schema nos dois, o que resolve hoje e
+volta a quebrar no primeiro teste que precisar de outro.
+
+**Estado em 2026-08-15:** A1 a A6b entregues e verificadas — 33 projetos, `dotnet build` e
+`dotnet format` limpos, 97 testes passando. Logto provisionado e com login do backoffice validado
 ponta a ponta; o bootstrap foi executado duas vezes para provar idempotência. Os quatro `Api` têm
 endpoints de prova (`/api/_probe/whoami`) marcados como andaimes de A6, a remover quando as features
 reais chegarem. `BuildingBlocks.Observability` contém só o mecanismo de
-sanitização; o OpenTelemetry em si é A8. Nada de A4b está ligado aos quatro serviços ainda, o que é
-correto: não existe entidade sensível, e `ICurrentUser`/`IClock` não têm registro concreto de DI até
-A6. O `Migrator` de cada serviço foi verificado à mão contra o Postgres do compose, mas o teste
-automatizado chama `MigrateAsync` direto — cobrir o executável no gate fica para A9.
+sanitização; o OpenTelemetry em si é A8. Os quatro `Api` agora referenciam sua própria
+`Infrastructure` e chamam `Add<Serviço>Infrastructure` no boot, com a connection string da role
+`svc_*` vinda de `appsettings.Development.json` e validada com `ValidateOnStart` — nenhum roda
+migração fora de Development. O flush de auditoria de A6b (`SensitiveDataAuditFlushMiddleware` +
+`ISensitiveDataAuditFlusher`) está no pipeline dos quatro serviços e é hoje um no-op: nenhum dos
+quatro tem `ISensitiveDataEntity` ainda, então nem o interceptor nem a tabela de auditoria foram
+mapeados nos seus `DbContext` — isso continua correto, por §3.3 da SensitiveDataAuditModelBuilderExtensions,
+que só entra no dia em que um serviço introduz sua primeira entidade sensível (D03, depois D04).
+`ICurrentUser` tem registro concreto desde A6; `IClock` continua sem registro concreto nos quatro
+serviços reais (só nos testes), porque nada nos quatro serviços o resolve ainda — entra junto com o
+interceptor no dia em que um deles precisar. O `Migrator` de cada serviço foi verificado à mão
+contra o Postgres do compose, mas o teste automatizado chama `MigrateAsync` direto — cobrir o
+executável no gate fica para A9.
 
 ### Fase B — Mensageria
 

@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <ItemGroup>
     <ProjectReference Include="..\SbaCars.Purchase.Application\SbaCars.Purchase.Application.csproj" />
+    <ProjectReference Include="..\SbaCars.Purchase.Infrastructure\SbaCars.Purchase.Infrastructure.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Web\SbaCars.BuildingBlocks.Web.csproj" />
   </ItemGroup>
 </Project>
