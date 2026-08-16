@@ -1271,7 +1271,7 @@ inbox/idempotência, `SbaCars.Contracts`, saga e timeout persistidos.
 | B1 | `BuildingBlocks.Messaging`: Rebus + RabbitMQ, topologia, envelope CloudEvents, retry/second-level/error queue, spans OTel | Serviço sobe, declara a topologia e a publicação aparece no trace | ✅ concluída |
 | B2 | Outbox do `Rebus.PostgreSql` por serviço + `IUnitOfWork` que enlista a transação do EF | Rollback de transação não publica evento — provado por teste | ✅ concluída |
 | B3 | Inbox/idempotência própria (step de pipeline + tabela `inbox_message`) | Reentrega do mesmo `message_id` não duplica efeito — provado por teste | ✅ concluída |
-| B4 | `SbaCars.Contracts` com os eventos dos Domain Docs + snapshot de schema | Mudança breaking em contrato quebra o build | ⬜ pendente |
+| B4 | `SbaCars.Contracts` com os eventos dos Domain Docs + snapshot de schema | Mudança breaking em contrato quebra o build | ✅ concluída |
 | B5 | Prova `foundation.ping` inventory → catalog | Teste de integração cobre outbox → broker → inbox, com trace correlacionado | ⬜ pendente |
 | B6 | Saga e timeout persistidos no PostgreSQL habilitados e provados (capacidade exigida pela reserva de D04, §2.5) | Saga sobrevive a restart do processo e um timeout dispara depois de reinício — provado por teste | ⬜ pendente |
 | B7 | Job de expurgo de outbox/inbox (7 dias) com advisory lock | Com duas réplicas, o expurgo executa uma vez só — provado por teste | ⬜ pendente |
@@ -1400,6 +1400,32 @@ posterior grava uma vez; redelivery após sucesso é deduplicada. `InboxSchemaTe
 `inventory.inbox_message` e que `svc_catalog` não lê o schema alheio. Testes B1/B2 seguem verdes
 (inbox opt-in com schema). Deliberadamente fora: B4–B7 (contratos de negócio, `foundation.ping`,
 saga/timeout, expurgo de 7 dias).
+
+**Estado em 2026-08-16 (B4):** contratos de integração entregues e verificados. Quinze
+`record`s em `SbaCars.Contracts.*.V1` cobrem os eventos da §6.4 mais as duas exceções de
+fundação da saga de reserva (`compra.reserva-solicitada`, `estoque.reserva-recusada`) —
+sem publicador de negócio, sem PII, sem campos de feature. Cada tipo carrega
+`[IntegrationEvent("nome-de-negócio")]` e implementa `IIntegrationEvent`; o nome no fio
+permanece o do Domain Doc, o tipo C# segue §3.2.
+
+O gate de breaking change é o `schema-snapshot.json` ao lado do projeto Contracts: o teste
+`CurrentContracts_MatchCommittedSnapshot` em `SbaCars.Architecture.Tests` reflete os
+`record`s publicados, serializa wire name, CLR full name e propriedades (nome, tipo,
+nullability) em JSON canônico e compara com o arquivo no disco via `RepositoryPaths` — remoção
+de evento, renomeação de wire name, remoção/renomeação de propriedade ou mudança de tipo quebra o
+build até atualização deliberada do snapshot. Testes de fixture provam o comparador (propriedade
+removida, tipo alterado, wire name alterado); `FoundationCatalog_ContainsExactlyTheFifteenDocumentedWireNames`
+fecha o catálogo. `SbaCars.Contracts` segue com zero `ProjectReference` e
+`PackageReference`; Architecture.Tests ganhou uma única referência ao assembly para reflexão.
+
+Payloads intencionalmente magros: identidade `Guid` do agregado de origem +
+`DateTimeOffset OcorridoEm`; `DisponibilidadeAlteradaIntegrationEvent` acrescenta
+`string Disponibilidade` (estados D02 RN-04 no fio); par de reserva usa
+`OfertaId` + `JornadaDeCompraId`; catálogo publica/atualiza com
+`ItemDoCatalogoId` + `OfertaId`; `interesse-solicitado`/`interesse.manifestado`
+incluem `ItemDoCatalogoId` como referência cruzada documentada. Deliberadamente fora: B5–B7
+(`foundation.ping`, saga/timeout, expurgo de 7 dias) e os demais eventos D04 deixados para
+Fase 2.
 
 ### Fase C — Storage
 
