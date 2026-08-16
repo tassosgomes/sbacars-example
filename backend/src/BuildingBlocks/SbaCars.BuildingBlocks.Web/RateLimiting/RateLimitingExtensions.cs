@@ -117,8 +117,15 @@ public static class RateLimitingExtensions
 
     // NOTE: this reads the socket's remote address, not a `Forwarded`/`X-Forwarded-For` header.
     // Behind a reverse proxy or load balancer this would need `ForwardedHeadersMiddleware`
-    // configured first (§8, "Runtime" row) — that wiring belongs to the deployment/observability
-    // task that introduces it, not to this one.
+    // configured first (§8, "Runtime" row). A8 wired that middleware
+    // (`SbaCars.BuildingBlocks.Web.Runtime.ForwardedHeadersExtensions`) — but only for the four
+    // services behind these two gateways, not for gateway-public itself. This limiter only ever
+    // runs in gateway-public, which is the outermost .NET process in every environment this
+    // repository currently runs (local compose has no further LB in front of it), so there is no
+    // upstream of ours to trust yet. The day gateway-public sits behind Swarm's own edge load
+    // balancer/TLS termination (§11.2, Fase D2), this is the seam to revisit: wire
+    // ForwardedHeaders here too and swap `httpContext.Connection.RemoteIpAddress` below for the
+    // header it resolves.
     private static string GetClientIdentifier(HttpContext httpContext) =>
         httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
 }

@@ -1,7 +1,9 @@
+using SbaCars.BuildingBlocks.Observability;
 using SbaCars.BuildingBlocks.Web.Auth;
 using SbaCars.BuildingBlocks.Web.CorrelationId;
 using SbaCars.BuildingBlocks.Web.Cors;
 using SbaCars.BuildingBlocks.Web.ErrorHandling;
+using SbaCars.BuildingBlocks.Web.Runtime;
 using SbaCars.Gateway.Shared;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +19,13 @@ builder.Services.AddSbaCarsAuth(builder.Configuration, builder.Environment);
 // removed here. Every cluster there sets HttpRequest.ActivityTimeout explicitly (30s, same
 // rationale as gateway-public) — required by §8, not left to YARP's own default.
 builder.Services.AddSbaCarsReverseProxy(builder.Configuration);
+builder.Services.AddSbaCarsObservability(builder.Configuration, "gateway-backoffice");
+builder.Services.AddSbaCarsRuntimeReadiness(builder.Configuration);
+// gateway-backoffice is the one gateway that also calls AddSbaCarsAuth (§5.2), so it gets the
+// JWKS leg of readiness on top of the shared self + downstream-services checks (§8).
+builder.Services.AddSbaCarsGatewayHealthChecks()
+    .AddSbaCarsJwksReadinessCheck(HealthCheckTags.Ready);
+// RabbitMQ, S3/MinIO and Redis do not exist yet (Fases B, C and D6) — nothing to check for them.
 
 var app = builder.Build();
 
@@ -24,6 +33,7 @@ var app = builder.Build();
 app.UseExceptionHandler();
 app.UseSbaCarsCorrelationId();
 app.UseHttpsRedirection();
+app.UseSbaCarsRequestTimeouts();
 app.UseSbaCarsCors();
 // No rate limiting here: gateway-backoffice never accepts unauthenticated traffic (§2.3), so
 // the anonymous-surface protection that matters lives only in gateway-public.
@@ -32,5 +42,8 @@ app.UseSbaCarsCors();
 // proxied route is covered by authentication/authorization, including its own AuthorizationPolicy.
 app.UseSbaCarsAuth();
 app.UseSbaCarsReverseProxy();
+// Anonymous on purpose (§8): the default-deny FallbackPolicy above would otherwise block an
+// orchestrator's health probe, which never carries a token.
+app.MapSbaCarsHealthChecks();
 
 app.Run();

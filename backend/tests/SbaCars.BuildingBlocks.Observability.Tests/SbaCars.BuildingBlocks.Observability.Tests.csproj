@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Plain Sdk, same reasoning as SbaCars.BuildingBlocks.Web.Tests: this project builds a
+         minimal ASP.NET Core host in-process (Microsoft.AspNetCore.TestHost) to exercise
+         AddSbaCarsObservability/AddSbaCarsHealthChecks the way a real Program.cs would. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" />
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Observability\SbaCars.BuildingBlocks.Observability.csproj" />
+    <!-- Test-only: reuses the real AddSbaCarsAuth/UseSbaCarsAuth default-deny FallbackPolicy to
+         prove MapSbaCarsHealthChecks' AllowAnonymous genuinely overrides it, instead of a
+         hand-rolled stand-in policy that would not prove anything about the real pipeline. This is
+         a test-project reference only — SbaCars.BuildingBlocks.Observability itself still has no
+         dependency on .Web. -->
+    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Web\SbaCars.BuildingBlocks.Web.csproj" />
+  </ItemGroup>
+
+</Project>

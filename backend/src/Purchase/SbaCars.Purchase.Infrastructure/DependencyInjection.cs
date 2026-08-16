@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Npgsql;
+using OpenTelemetry.Trace;
 using SbaCars.BuildingBlocks.Application;
 using SbaCars.BuildingBlocks.Persistence;
 using SbaCars.BuildingBlocks.Persistence.Auditing;
@@ -32,6 +34,11 @@ public static class DependencyInjection
 
         services.AddScoped<IUnitOfWork, EfUnitOfWork<PurchaseDbContext>>();
         services.AddSbaCarsSensitiveDataAuditFlusher<PurchaseDbContext>();
+
+        // A8 (§8): Npgsql's own tracing, composed onto whatever tracer provider
+        // AddSbaCarsObservability registers in Program.cs — see the remark on this project's
+        // .csproj for why it lives here rather than in BuildingBlocks.Observability.
+        services.ConfigureOpenTelemetryTracerProvider((_, tracing) => tracing.AddNpgsql());
 
         return services;
     }

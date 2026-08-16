@@ -9,6 +9,9 @@ const DEV_DEFAULTS: RuntimeEnv = {
   // infra/logto/bootstrap.mjs atualiza este valor (e o runtime-env.js) automaticamente após
   // provisionar a aplicação; o placeholder abaixo só é usado antes do primeiro bootstrap rodar.
   OIDC_CLIENT_ID: 'REPLACE_AFTER_LOGTO_BOOTSTRAP',
+  // Aspire Dashboard's OTLP/HTTP endpoint (docker-compose, A8) — active by default in local dev
+  // so `npm run dev` traces without extra setup; empty in an environment where no dashboard runs.
+  OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:18890',
 };
 
 function getRuntimeEnv(): RuntimeEnv {
@@ -18,6 +21,7 @@ function getRuntimeEnv(): RuntimeEnv {
     API_BASE_URL: env.API_BASE_URL ?? DEV_DEFAULTS.API_BASE_URL,
     OIDC_AUTHORITY: env.OIDC_AUTHORITY ?? DEV_DEFAULTS.OIDC_AUTHORITY,
     OIDC_CLIENT_ID: env.OIDC_CLIENT_ID ?? DEV_DEFAULTS.OIDC_CLIENT_ID,
+    OTEL_EXPORTER_OTLP_ENDPOINT: env.OTEL_EXPORTER_OTLP_ENDPOINT ?? DEV_DEFAULTS.OTEL_EXPORTER_OTLP_ENDPOINT,
   };
 }
 

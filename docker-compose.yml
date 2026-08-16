@@ -70,5 +70,38 @@ services:
       - "3001:3001"
       - "3002:3002"
 
+  # A8 — Aspire Dashboard como coletor OTLP local (§8, §10): traces, métricas e logs
+  # correlacionados dos seis processos .NET e do OpenTelemetry Web dos dois SPAs num único lugar,
+  # sem subir uma stack de observabilidade completa. Tag fixa (nunca `latest`, mesma disciplina do
+  # Logto acima) — sem volume de container: o dashboard não persiste nada entre execuções, e não
+  # precisa persistir (é um coletor/visualizador, não uma fonte de verdade).
+  #
+  # Postura de auth em ambiente local: os dois AUTHMODE ficam Unsecured. O modo padrão do
+  # frontend exige um token de navegador (BrowserToken) e o do OTLP exige API key — nenhum dos
+  # dois agrega segurança real num ambiente que já não é exposto fora do host do desenvolvedor, e
+  # exigiriam distribuir uma chave para os seis processos .NET (que enviam via OTLP/gRPC) e para os
+  # dois SPAs (que enviam via OTLP/HTTP direto do navegador, onde a chave ficaria visível de
+  # qualquer forma). Não é a postura de produção — quando este ambiente existir, o dashboard nem
+  # roda fora do cluster.
+  #
+  # Duas portas OTLP, não uma: os seis processos .NET exportam por gRPC (18889); os dois SPAs
+  # exportam por HTTP (18890), porque é o que o SDK OpenTelemetry Web suporta no navegador. CORS
+  # liberado nas origens dos dois SPAs — sem isso, o navegador bloqueia a chamada cross-origin do
+  # exportador antes mesmo dela sair.
+  aspire-dashboard:
+    image: mcr.microsoft.com/dotnet/aspire-dashboard:9.5.2
+    environment:
+      ASPNETCORE_URLS: http://+:18888
+      ASPIRE_DASHBOARD_OTLP_ENDPOINT_URL: http://+:18889
+      ASPIRE_DASHBOARD_OTLP_HTTP_ENDPOINT_URL: http://+:18890
+      DASHBOARD__FRONTEND__AUTHMODE: Unsecured
+      DASHBOARD__OTLP__AUTHMODE: Unsecured
+      DASHBOARD__OTLP__CORS__ALLOWEDORIGINS: http://localhost:5173,http://localhost:5174
+      DASHBOARD__OTLP__CORS__ALLOWEDHEADERS: content-type,traceparent,tracestate
+    ports:
+      - "18888:18888"
+      - "18889:18889"
+      - "18890:18890"
+
 volumes:
   sbacars-postgres-data:

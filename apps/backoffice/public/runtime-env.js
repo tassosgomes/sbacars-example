@@ -7,4 +7,5 @@ window.RUNTIME_ENV = {
   API_BASE_URL: 'http://localhost:5001',
   OIDC_AUTHORITY: 'http://localhost:3001/oidc',
   OIDC_CLIENT_ID: 'aon9si40iw1amithkg7xr',
+  OTEL_EXPORTER_OTLP_ENDPOINT: 'http://localhost:18890',
 };

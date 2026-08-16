@@ -1072,7 +1072,7 @@ Cada passo termina com algo verificável. Nada de "passo de infraestrutura sem p
 | A6 | JwtBearer + default-deny em todos os serviços; `ClaimsTransformation` projetando `scope` em permissões; `ICurrentUser` com permissões | Endpoint protegido: 401 sem token, 403 sem permissão, 200 com permissão. Teste de arquitetura falha se aparecer `[Authorize(Roles=...)]` ou `IsInRole` | ✅ concluída |
 | A6b | Ligar `Infrastructure` na DI dos quatro `Api` e fechar a pendência da §5.7: flush da auditoria no fim da requisição | Leitura puramente de leitura, sem `SaveChanges`, gera linha de auditoria — provado por teste | ✅ concluída |
 | A7 | Gateways YARP: rotas, CORS, rate limit, validação de token no edge de backoffice | Os dois SPAs alcançam o backend pelos ports atuais, sem mudar `runtimeConfig` | ✅ concluída |
-| A8 | Observabilidade: OTel, health checks, Aspire Dashboard | Requisição do SPA aparece como um trace único atravessando gateway e serviço | ⬜ pendente |
+| A8 | Observabilidade: OTel, health checks, Aspire Dashboard | Requisição do SPA aparece como um trace único atravessando gateway e serviço | ✅ concluída |
 | A9 | `TestKit`, testes de arquitetura, gate de CI atualizado | Referência de projeto indevida entre serviços quebra o build | ⬜ pendente |
 
 Dois débitos pequenos a endereçar em A9, ambos de código de teste: cobrir o executável do `Migrator`
@@ -1082,12 +1082,13 @@ indexado pelo tipo CLR, então dois testes paralelos com schemas diferentes sobr
 disputam o modelo compilado. A6b contornou usando o mesmo schema nos dois, o que resolve hoje e
 volta a quebrar no primeiro teste que precisar de outro.
 
-**Estado em 2026-08-15:** A1 a A7 entregues e verificadas — 35 projetos, `dotnet build` e
-`dotnet format` limpos, 114 testes passando. Logto provisionado e com login do backoffice validado
+**Estado em 2026-08-16:** A1 a A8 entregues e verificadas — 36 projetos, `dotnet build` e
+`dotnet format` limpos, 128 testes passando no backend; `typecheck`, `lint`, `test` e `build`
+limpos no frontend. Logto provisionado e com login do backoffice validado
 ponta a ponta; o bootstrap foi executado duas vezes para provar idempotência. Os quatro `Api` têm
 endpoints de prova (`/api/_probe/whoami`) marcados como andaimes de A6, a remover quando as features
-reais chegarem. `BuildingBlocks.Observability` contém só o mecanismo de
-sanitização; o OpenTelemetry em si é A8. Os quatro `Api` agora referenciam sua própria
+reais chegarem. `BuildingBlocks.Observability` deixou de conter só o mecanismo de sanitização: a A8
+somou a ele a fiação do OpenTelemetry e as convenções de health check. Os quatro `Api` agora referenciam sua própria
 `Infrastructure` e chamam `Add<Serviço>Infrastructure` no boot, com a connection string da role
 `svc_*` vinda de `appsettings.Development.json` e validada com `ValidateOnStart` — nenhum roda
 migração fora de Development. O flush de auditoria de A6b (`SensitiveDataAuditFlushMiddleware` +
@@ -1122,6 +1123,90 @@ catalog e `POST` no interest, cada um no método que o seu edge de fato roteia; 
 não foram tocados. O rate limit continua em memória por processo — D6 é quem
 troca por contador no Redis quando houver mais de uma réplica; nada nessa entrega mudou isso. OTel,
 health checks e Redis ficam fora, são A8 e D6.
+
+A8 ligou o OpenTelemetry nos seis processos por uma única extensão,
+`AddSbaCarsObservability(configuration, serviceName)`, chamada de forma idêntica pelos quatro `Api`
+e pelos dois gateways: `ResourceBuilder` com `service.name`/`service.version`/`service.instance.id`,
+tracing (`AddAspNetCoreInstrumentation`, `AddHttpClientInstrumentation`, mais `AddSource("Yarp.ReverseProxy")`
+para o span próprio do YARP — inofensivo nos quatro serviços, que nunca criam atividade sob esse
+nome), métricas (as mesmas instrumentações mais `AddRuntimeInstrumentation`) e logs
+(`IncludeScopes = true`, o que basta para o `CorrelationId` que o middleware da A3 já põe no escopo
+do log aparecer no `LogRecord` exportado — nenhum segundo mecanismo de correlação foi criado). O
+exportador OTLP só é ligado quando `Observability:OtlpEndpoint` está configurado; ausente, a
+instrumentação continua de pé (por isso `SbaCars.Gateway.Tests` consegue plugar um exportador em
+memória por cima de um pipeline "sem endpoint"), e o processo não quebra o boot em Development sem
+o Aspire Dashboard rodando — só um valor **presente e malformado** falha o `ValidateOnStart`. O
+tracing do Npgsql (`Npgsql.OpenTelemetry`, `.AddNpgsql()`) foi ligado em cada `Infrastructure`, não
+em `BuildingBlocks.Observability`: assim os dois gateways — que referenciam `.Observability` só pelo
+`AddSbaCarsObservability` — nunca carregam Npgsql, e o teste `ObservabilityContainmentTests` prova
+que `Domain`/`Application` também não. O processor de redação de dado sensível
+(`SensitiveDataRedactionProcessor`, o adaptador de uma linha que o `<remarks>` do `SensitiveTagRedactor`
+da A4b já previa) está registrado no pipeline de tracing dos seis processos — hoje sem nenhum tipo
+sensível configurado, porque nenhum serviço tem DTO sensível ainda, mas coberto por teste unitário
+que prova a tag mascarada não sobrevive ao `OnEnd`.
+
+Health checks: `/health/live`, `/health/ready` e `/health/startup` nos seis processos, mapeados por
+`SbaCarsHealthChecksExtensions` a partir da tag de cada `IHealthCheck` — nunca por lista manual — e
+sempre anônimos e isentos de rate limit (`[AllowAnonymous]` + `DisableRateLimiting()`), porque o
+default-deny da A6 e o limitador da A7 bloqueariam um probe de orquestrador. `/health/ready` verifica
+PostgreSQL nos quatro serviços (`EfCoreReadinessHealthCheck<TContext>`, em `BuildingBlocks.Persistence`,
+via `Database.CanConnectAsync`) e o JWKS do Logto onde há `AddSbaCarsAuth` — os quatro serviços e o
+`gateway-backoffice` (`JwksReadinessHealthCheck`, em `BuildingBlocks.Web`, reaproveitando o mesmo
+`JwtBearerOptions.ConfigurationManager` que a validação de token já usa, sem uma segunda chamada
+HTTP paralela). Os dois gateways agregam: `DownstreamReadinessHealthCheck`, em `SbaCars.Gateway.Shared`,
+lê o mapa de clusters do YARP direto de `IProxyConfigProvider` — o mesmo que `ReverseProxyExtensions`
+já valida no boot — e consulta o `/health/ready` de um destino por cluster, sem lista duplicada à
+mão. **RabbitMQ, S3/MinIO e Redis não têm health check** porque não existem ainda — chegam com B, C
+e D6, respectivamente; o código comenta a fase dona em vez de deixar um check morto.
+
+Runtime: `ForwardedHeadersExtensions` (`BuildingBlocks.Web`) está ligado nos quatro serviços, que
+ficam atrás dos gateways — fecha a metade do TODO em `RateLimitingExtensions.GetClientIdentifier`
+que dizia respeito a eles. A outra metade continua aberta de propósito: `gateway-public` é o processo
+mais externo em todo ambiente que este repositório roda hoje (o compose local não tem LB na frente
+dele), então não há upstream de confiança ainda para configurar — isso é D2, quando o load balancer
+de borda do Swarm entrar. `RequestTimeouts` (30s, mesmo valor do `HttpRequest.ActivityTimeout` que a
+A7 já configurava nos clusters do YARP) e o `ShutdownTimeout` do host (30s) estão nos seis processos
+via `RuntimeExtensions.AddSbaCarsRuntimeReadiness`.
+
+O compose ganhou `aspire-dashboard` (`mcr.microsoft.com/dotnet/aspire-dashboard:9.5.2`, tag fixa, sem
+volume — o dashboard não é fonte de verdade de nada), com as portas OTLP separadas por protocolo: os
+seis processos .NET exportam por gRPC (`:18889`); os dois SPAs exportam por HTTP (`:18890`), porque é
+o que o SDK Web do OpenTelemetry suporta no navegador, com CORS liberado para `localhost:5173` e
+`localhost:5174`. A postura de auth é `Unsecured` dos dois lados (frontend e OTLP) — decisão de
+ambiente local, comentada no compose: nenhuma das duas alternativas (token de navegador, API key)
+agrega segurança real fora do host do desenvolvedor, e a API key precisaria ser distribuída para seis
+processos .NET mais dois SPAs que a exporiam de qualquer forma no navegador.
+
+Os dois SPAs ganharam OpenTelemetry Web (`src/telemetry/index.ts` em cada app, mesma forma, apenas
+`service.name` e a porta padrão do `API_BASE_URL` mudando): `WebTracerProvider` com
+`ZoneContextManager` (necessário para o contexto do span sobreviver ao menos um `await` de
+`fetch`/XHR — o gerenciador padrão da SDK só é confiável para código puramente síncrono),
+instrumentação de `fetch` e `XMLHttpRequest`, e `propagateTraceHeaderCorsUrls` com um `RegExp` ancorado
+na origem do próprio gateway — **não** a origem como string simples: `shouldPropagateTraceHeaders`
+(`@opentelemetry/core`) compara uma entrada string contra a URL **inteira** da requisição com `===`,
+o que nunca bateria com nenhum caminho real. O endpoint do coletor entra em `runtimeConfig.ts`
+(`OTEL_EXPORTER_OTLP_ENDPOINT`, no padrão `window.RUNTIME_ENV` já existente) — ausente, a
+inicialização é um no-op, a mesma postura do backend. Nenhum atributo de span carrega query string:
+um `SpanProcessor` próprio (`StripSensitiveUrlDataProcessor`) mascara `http.url`/`url.full` antes do
+`BatchSpanProcessor` de exportação, espelhando o `SensitiveDataRedactionProcessor` do backend. A
+prova automatizada de que o header realmente sai (`src/test/telemetry.test.ts` em cada app) mocka o
+`fetch` global antes de inicializar a telemetria e afirma o formato do `traceparent` na chamada
+interceptada.
+
+A prova ponta a ponta do critério da A8 é `SbaCars.Gateway.Tests/TraceContinuityTests.cs`: injeta um
+`traceparent` sintético na borda do `gateway-public` (via `WebApplicationFactory`, reaproveitando o
+padrão de destino da A7) e prova que o serviço a jusante — `InstrumentedDestinationStub`, um host
+mínimo que chama o mesmo `AddSbaCarsObservability` real em vez de uma implementação própria de
+serviço, para não depender de Postgres/Logto só para observar propagação — participa do mesmo
+trace-id, com o span pai correto (o span de saída do `HttpClient` do próprio gateway, não o span
+injetado diretamente). Como a instrumentação ASP.NET Core/HttpClient do OpenTelemetry escuta
+`ActivitySource`s globais ao processo, o projeto de teste desativa paralelismo entre classes
+(`[assembly: CollectionBehavior(DisableTestParallelization = true)]`) para que dois hosts de teste
+concorrentes não poluam as atividades exportadas um do outro.
+
+Fica fora, deliberadamente: health check de RabbitMQ/S3/Redis (B, C, D6); `ForwardedHeaders` no
+`gateway-public` propriamente dito (D2, quando existir um LB de borda de verdade no Swarm); e a
+dívida já registrada da A9 sobre cobrir o executável do `Migrator` no gate, que esta fase não tocou.
 
 ### Fase B — Mensageria
 

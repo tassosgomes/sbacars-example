@@ -1,3 +1,25 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <ItemGroup>
+    <!-- Plain Sdk (not Sdk.Web): a library referenced by all six processes (4 Api + 2 Gateway),
+         not an entry point of its own. Same rationale as BuildingBlocks.Web — the FrameworkReference
+         below gives access to health-check endpoint mapping (WebApplication, MapHealthChecks,
+         AllowAnonymous, DisableRateLimiting) without the Web SDK's static-web-assets pipeline. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- A8 — OpenTelemetry: tracing (ASP.NET Core + HttpClient instrumentation), metrics (+ .NET
+         runtime meters) and logs, all exported via OTLP. Npgsql tracing is deliberately NOT here:
+         it lives in each service's own Infrastructure project (§3.3) so the two gateways — which
+         reference this project for AddSbaCarsObservability but never talk to Postgres — do not
+         carry Npgsql transitively. -->
+    <PackageReference Include="OpenTelemetry" />
+    <PackageReference Include="OpenTelemetry.Extensions.Hosting" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.AspNetCore" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Http" />
+    <PackageReference Include="OpenTelemetry.Instrumentation.Runtime" />
+  </ItemGroup>
+
 </Project>

@@ -3,5 +3,6 @@
     <ProjectReference Include="..\SbaCars.Inventory.Application\SbaCars.Inventory.Application.csproj" />
     <ProjectReference Include="..\SbaCars.Inventory.Infrastructure\SbaCars.Inventory.Infrastructure.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Web\SbaCars.BuildingBlocks.Web.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Observability\SbaCars.BuildingBlocks.Observability.csproj" />
   </ItemGroup>
 </Project>

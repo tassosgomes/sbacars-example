@@ -9,6 +9,10 @@
     <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
     <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <!-- A8 — the generic EF Core readiness check (§8): framework-agnostic (no ASP.NET Core
+         dependency), so referencing it here never pulls Kestrel/MVC/etc. into a plain data-access
+         library. -->
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
   </ItemGroup>
 
   <ItemGroup>
