@@ -239,8 +239,10 @@ paths:
         Não bloqueie o submit por campos vazios. Use `criteriosElegibilidade` da resposta
         para renderizar o contador "N de 6 critérios atendidos" sem recalcular no cliente.
       x-backend-notes: |
-        Publica `estoque.oferta-incluida`. Índice único parcial sobre placa restrito às
-        situações diferentes de `retirada`, para permitir recadastro após retirada (QA-01).
+        **Não publica evento.** Um cadastro em preparação ainda não compõe a oferta curada,
+        e D01 não deve receber nada neste momento — `estoque.oferta-incluida` só sai quando
+        a elegibilidade é aprovada. Índice único parcial sobre placa restrito às situações
+        diferentes de `retirada`, para permitir recadastro após retirada (QA-01).
 
   /ofertas/{ofertaId}:
     parameters:

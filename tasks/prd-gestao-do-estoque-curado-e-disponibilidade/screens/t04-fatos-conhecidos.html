@@ -1,0 +1,168 @@
+<html lang="pt-BR"><head><meta charset="utf-8"/><meta content="width=device-width, initial-scale=1.0" name="viewport"/><style>@layer base{html,body{margin:0;padding:0;}body{overscroll-behavior:none;}main>:first-child{margin-top:0!important;}main>:last-child{margin-bottom:0!important;}}::-webkit-scrollbar{display:none;}</style><script src="https://cdn.tailwindcss.com"></script><script id="tailwind-config">tailwind.config={theme:{extend:{"colors":{"surface-container-low":"#f5f2ff","on-error-container":"#93000a","on-secondary-fixed-variant":"#733600","tertiary-fixed-dim":"#72dc91","inverse-primary":"#c7c5d4","tertiary-fixed":"#8ef9ab","surface-tint":"#5e5d6b","on-tertiary-fixed-variant":"#005228","on-primary-fixed":"#1a1b26","surface-variant":"#e3e0f2","on-primary-container":"#9795a4","outline":"#78767c","surface-container-high":"#e9e6f7","on-background":"#1a1a27","on-secondary-fixed":"#311300","on-tertiary-fixed":"#00210c","on-surface-variant":"#47464c","primary-fixed":"#e3e1f1","surface-container-highest":"#e3e0f2","on-secondary":"#ffffff","inverse-surface":"#2f2f3c","secondary":"#974800","background":"#fcf8ff","on-primary-fixed-variant":"#464652","secondary-container":"#fe8523","primary-container":"#2e2e3a","tertiary-container":"#003719","error-container":"#ffdad6","primary-fixed-dim":"#c7c5d4","surface-dim":"#dbd8e9","surface-bright":"#fcf8ff","surface":"#fcf8ff","primary":"#191925","error":"#ba1a1a","outline-variant":"#c8c5cc","secondary-fixed":"#ffdbc7","on-error":"#ffffff","on-surface":"#1a1a27","on-tertiary":"#ffffff","secondary-fixed-dim":"#ffb688","surface-container":"#efecfd","surface-container-lowest":"#ffffff","tertiary":"#001f0b","inverse-on-surface":"#f2efff","on-tertiary-container":"#3eaa65","on-primary":"#ffffff","on-secondary-container":"#622d00"},"borderRadius":{"DEFAULT":"0.125rem","lg":"0.25rem","xl":"0.5rem","full":"0.75rem"},"spacing":{"gutter":"16px","unit":"4px","container-padding":"24px","row-height-dense":"32px","row-height-standard":"48px"},"fontFamily":{"data-table":["Inter"],"headline-lg-mobile":["Inter"],"headline-lg":["Inter"],"label-caps":["Inter"],"headline-md":["Inter"],"body-main":["Inter"]},"fontSize":{"data-table":["14px",{"lineHeight":"20px","fontWeight":"500"}],"headline-lg-mobile":["24px",{"lineHeight":"32px","letterSpacing":"-0.01em","fontWeight":"700"}],"headline-lg":["32px",{"lineHeight":"40px","letterSpacing":"-0.01em","fontWeight":"700"}],"label-caps":["12px",{"lineHeight":"16px","letterSpacing":"0.05em","fontWeight":"700"}],"headline-md":["20px",{"lineHeight":"28px","fontWeight":"600"}],"body-main":["14px",{"lineHeight":"20px","fontWeight":"400"}]}}}}</script><link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet"/></head><body class="bg-background font-body-main text-on-surface"><aside class="fixed top-0 left-0 w-64 h-full bg-primary-container text-on-primary z-50 flex flex-col"><div class="h-16 flex items-center px-container-padding border-b border-on-primary-fixed-variant"><span class="font-headline-md text-on-primary">AutoTransparência</span></div><nav class="flex-1 py-gutter flex flex-col gap-unit" data-active-classes="bg-on-primary-fixed-variant text-on-primary"><a class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors" data-path="painel" href="#">Painel</a><a class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors" data-path="estoque" href="#">Estoque</a><a class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors flex items-center justify-between" data-path="validacao" href="#"><span>Validação</span><span class="bg-error text-on-error rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold">7</span></a><a class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors" data-path="interesses" href="#">Interesses</a><a class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors" data-path="compras" href="#">Compras</a></nav></aside><header class="fixed top-0 left-64 right-0 h-16 bg-surface border-b border-outline-variant z-40 px-container-padding flex items-center justify-between"><span class="text-body-main font-semibold text-on-surface-variant underline decoration-secondary-container decoration-2 underline-offset-4 uppercase tracking-wider">Área de operação</span><div class="flex items-center gap-gutter"><div class="text-right"><p class="text-body-main font-semibold text-on-surface">Ana Souza</p><p class="text-[11px] text-on-surface-variant font-label-caps">Operadora Sênior</p></div><div class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center overflow-hidden border border-outline-variant"><span class="material-symbols-outlined text-on-surface-variant">person</span></div></div></header><main class="pl-64 pt-16 w-full min-h-screen"><div class="flex flex-col w-full relative pb-32">
+<div class="w-full max-w-[880px] mx-auto mt-8 flex flex-col gap-8 px-container-padding">
+<!-- Breadcrumb -->
+<nav class="flex items-center gap-2 font-label-caps text-label-caps text-on-surface-variant uppercase tracking-wider">
+<span class="hover:text-primary transition-colors cursor-pointer">Estoque</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="hover:text-primary transition-colors cursor-pointer">Honda Civic EXL 2.0</span>
+<span class="material-symbols-outlined text-[16px]">chevron_right</span>
+<span class="text-on-surface">Fatos conhecidos</span>
+</nav>
+<!-- Aviso Permanente -->
+<div class="flex gap-4 p-4 rounded-r-lg bg-inverse-on-surface shadow-[inset_4px_0_0_0_#2e2e3a]">
+<span class="material-symbols-outlined text-primary-container shrink-0 mt-0.5">info</span>
+<div class="flex flex-col gap-1">
+<p class="font-body-main text-body-main text-on-surface font-semibold">Dado ausente não impede a elegibilidade</p>
+<p class="font-body-main text-body-main text-on-surface-variant">A ausência de documentos comprobatórios não bloqueia a venda, mas o veículo será anunciado com transparência parcial. Declare a limitação sempre que um dado não puder ser obtido.</p>
+</div>
+</div>
+<!-- Cards Container -->
+<div class="flex flex-col gap-6">
+<!-- ORIGEM Card -->
+<section class="bg-surface-container-lowest rounded-xl shadow-sm p-8 flex flex-col gap-6">
+<header class="flex items-center justify-between">
+<div class="flex flex-col gap-1">
+<h2 class="font-headline-md text-headline-md text-on-surface">Origem</h2>
+<p class="font-body-main text-body-main text-on-surface-variant">Procedência documentada do veículo.</p>
+</div>
+<button aria-checked="false" class="relative inline-flex h-6 w-11 items-center rounded-full bg-surface-variant transition-colors focus:outline-none" role="switch">
+<span class="inline-block h-4 w-4 translate-x-1 rounded-full bg-outline transition-transform"></span>
+</button>
+</header>
+<div class="grid grid-cols-2 gap-gutter opacity-60 pointer-events-none">
+<div class="flex flex-col gap-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Categoria da Origem</label>
+<div class="bg-surface-container px-4 py-3 rounded-lg shadow-[inset_0_0_0_1px_#c8c5cc]">
+<span class="font-body-main text-body-main text-on-surface">Frota corporativa</span>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Fornecedor / Contrato</label>
+<div class="bg-surface-container px-4 py-3 rounded-lg shadow-[inset_0_0_0_1px_#c8c5cc]">
+<span class="font-body-main text-body-main text-on-surface">Contrato Localiza</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-3 mt-2">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant">Evidências Anexadas</h3>
+<div class="flex items-center justify-between bg-surface-container-low p-3 rounded-lg shadow-[inset_0_0_0_1px_#e3e0f2]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-error-container text-on-error-container flex items-center justify-center">
+<span class="material-symbols-outlined">picture_as_pdf</span>
+</div>
+<div class="flex flex-col">
+<span class="font-body-main text-body-main font-semibold text-on-surface">contrato-cessao-localiza.pdf</span>
+<span class="font-label-caps text-label-caps text-on-surface-variant font-normal">2.4 MB • Adicionado hoje</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="w-8 h-8 rounded-full hover:bg-surface-variant text-on-surface-variant flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[20px]">download</span>
+</button>
+<button class="w-8 h-8 rounded-full hover:bg-error-container text-error flex items-center justify-center transition-colors">
+<span class="material-symbols-outlined text-[20px]">delete</span>
+</button>
+</div>
+</div>
+</div>
+</section>
+<!-- CONDIÇÃO Card (Error State) -->
+<section class="bg-surface-container-lowest rounded-xl shadow-[0_0_0_2px_#ba1a1a,0_4px_6px_-1px_rgba(0,0,0,0.1)] p-8 flex flex-col gap-6 relative overflow-hidden">
+<!-- Error subtle background gradient -->
+<div class="absolute inset-0 bg-gradient-to-b from-error-container/20 to-transparent pointer-events-none"></div>
+<header class="flex items-center justify-between relative z-10">
+<div class="flex flex-col gap-1">
+<h2 class="font-headline-md text-headline-md text-on-surface">Condição</h2>
+<p class="font-body-main text-body-main text-on-surface-variant">Laudos e inspeções estruturais.</p>
+</div>
+<button aria-checked="false" class="relative inline-flex h-6 w-11 items-center rounded-full bg-surface-variant transition-colors focus:outline-none" role="switch">
+<span class="inline-block h-4 w-4 translate-x-1 rounded-full bg-outline transition-transform"></span>
+</button>
+</header>
+<div class="grid grid-cols-2 gap-gutter relative z-10">
+<div class="flex flex-col gap-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Tipo de Laudo</label>
+<div class="bg-surface px-4 py-3 rounded-lg shadow-[inset_0_0_0_1px_#c8c5cc] flex justify-between items-center text-on-surface-variant cursor-not-allowed opacity-50">
+<span class="font-body-main text-body-main">Selecione...</span>
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+<div class="flex flex-col gap-2">
+<label class="font-label-caps text-label-caps text-on-surface-variant">Resultado</label>
+<div class="bg-surface px-4 py-3 rounded-lg shadow-[inset_0_0_0_1px_#c8c5cc] flex justify-between items-center text-on-surface-variant cursor-not-allowed opacity-50">
+<span class="font-body-main text-body-main">Selecione...</span>
+<span class="material-symbols-outlined">expand_more</span>
+</div>
+</div>
+</div>
+<div class="flex flex-col gap-3 mt-2 relative z-10">
+<h3 class="font-label-caps text-label-caps text-on-surface-variant">Evidências Anexadas</h3>
+<!-- Upload in progress -->
+<div class="flex flex-col gap-3 p-4 rounded-lg bg-surface-container-low shadow-[inset_0_0_0_1px_#e3e0f2]">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded bg-secondary-fixed-dim text-on-secondary-fixed flex items-center justify-center opacity-70">
+<span class="material-symbols-outlined">upload</span>
+</div>
+<div class="flex flex-col flex-1">
+<div class="flex justify-between items-center mb-1">
+<span class="font-body-main text-body-main font-semibold text-on-surface">laudo-cautelar.pdf</span>
+<span class="font-label-caps text-label-caps text-secondary-container">60%</span>
+</div>
+<div class="h-1.5 w-full bg-surface-variant rounded-full overflow-hidden">
+<div class="h-full bg-secondary-container rounded-full" style="width: 60%;"></div>
+</div>
+</div>
+<button class="w-8 h-8 rounded-full hover:bg-surface-variant text-on-surface-variant flex items-center justify-center transition-colors ml-2">
+<span class="material-symbols-outlined text-[20px]">close</span>
+</button>
+</div>
+</div>
+</div>
+<div class="mt-2 flex items-center gap-2 text-error bg-error-container/30 p-3 rounded-lg relative z-10">
+<span class="material-symbols-outlined text-[20px]">warning</span>
+<span class="font-body-main text-body-main font-semibold">Sem conteúdo e sem limitação declarada. Por favor, anexe o laudo ou declare o motivo da ausência.</span>
+</div>
+</section>
+<!-- HISTÓRICO Card (Switch ON, Declared Limitation) -->
+<section class="bg-surface-container-lowest rounded-xl shadow-sm p-8 flex flex-col gap-6 relative overflow-hidden">
+<!-- Success subtle background gradient -->
+<div class="absolute inset-0 bg-gradient-to-b from-tertiary-fixed/10 to-transparent pointer-events-none"></div>
+<header class="flex items-center justify-between relative z-10">
+<div class="flex flex-col gap-1">
+<h2 class="font-headline-md text-headline-md text-on-surface">Histórico</h2>
+<p class="font-body-main text-body-main text-on-surface-variant">Passagens por leilão, sinistros e restrições.</p>
+</div>
+<button aria-checked="true" class="relative inline-flex h-6 w-11 items-center rounded-full bg-on-tertiary-container transition-colors focus:outline-none shadow-sm" role="switch">
+<span class="inline-block h-4 w-4 translate-x-6 rounded-full bg-on-tertiary transition-transform shadow-sm"></span>
+</button>
+</header>
+<div class="flex flex-col gap-2 relative z-10">
+<label class="font-label-caps text-label-caps text-on-secondary-fixed flex items-center gap-2">
+<span class="material-symbols-outlined text-[16px]">edit_note</span>
+            Limitação Declarada
+          </label>
+<textarea class="w-full min-h-[120px] bg-secondary-fixed text-on-secondary-fixed p-4 rounded-lg shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] resize-none font-body-main text-body-main placeholder:text-on-secondary-fixed-variant/50 focus:outline-none focus:shadow-[inset_0_0_0_2px_#974800]" placeholder="Descreva o motivo...">Veículo oriundo de repasse interno de frota corporativa internacional sem integração com as bases de dados nacionais de sinistro (Senatran/Checkauto). A documentação primária não possui registros averbados, tornando impossível a validação completa de sinistros prévios à importação.</textarea>
+<p class="text-right font-label-caps text-label-caps text-on-surface-variant mt-1">264 / 500 caracteres</p>
+</div>
+</section>
+</div>
+</div>
+<!-- Fixed Action Bar -->
+<div class="fixed bottom-0 left-64 right-0 px-container-padding py-4 bg-surface/90 backdrop-blur-md shadow-[0_-4px_20px_rgba(0,0,0,0.05)] flex items-center justify-between z-40 border-t border-outline-variant/30">
+<div class="flex items-center gap-4 text-on-surface-variant">
+<span class="material-symbols-outlined text-outline">history</span>
+<span class="font-body-main text-body-main">Última alteração hoje às 14:32</span>
+</div>
+<div class="flex gap-4">
+<button class="px-6 py-2 rounded font-label-caps text-label-caps text-primary bg-surface-container-high hover:bg-surface-variant transition-colors shadow-sm">
+        Cancelar
+      </button>
+<button class="px-8 py-2 rounded font-label-caps text-label-caps text-on-secondary bg-secondary-container hover:bg-secondary transition-colors shadow-md flex items-center gap-2">
+<span class="material-symbols-outlined text-[18px]">save</span>
+        Salvar fatos
+      </button>
+</div>
+</div>
+</div></main></body></html>

@@ -647,4 +647,4 @@ este último DESABILITADO (fundo #e2e2ea, texto #78767c), porque o campo está v
 | 6 | M05, M06 | Modais — os menores, herdam tudo. |
 | 7 | T03-b, T08-b | Variantes de estado, geradas a partir das aprovadas. |
 
-Total: **11 telas** (7 principais + 2 modais + 2 variantes de estado).
+Total: **10 telas** (6 principais + 2 modais + 2 variantes de estado).

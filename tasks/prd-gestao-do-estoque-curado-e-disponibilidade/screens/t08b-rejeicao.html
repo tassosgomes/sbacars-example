@@ -1,0 +1,291 @@
+<html lang="pt-BR">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <style>
+        @layer base {
+
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                overscroll-behavior: none;
+            }
+
+            main>:first-child {
+                margin-top: 0 !important;
+            }
+
+            main>:last-child {
+                margin-bottom: 0 !important;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script
+        id="tailwind-config">tailwind.config = { theme: { extend: { "colors": { "surface-container-low": "#f5f2ff", "on-error-container": "#93000a", "on-secondary-fixed-variant": "#733600", "tertiary-fixed-dim": "#72dc91", "inverse-primary": "#c7c5d4", "tertiary-fixed": "#8ef9ab", "surface-tint": "#5e5d6b", "on-tertiary-fixed-variant": "#005228", "on-primary-fixed": "#1a1b26", "surface-variant": "#e3e0f2", "on-primary-container": "#9795a4", "outline": "#78767c", "surface-container-high": "#e9e6f7", "on-background": "#1a1a27", "on-secondary-fixed": "#311300", "on-tertiary-fixed": "#00210c", "on-surface-variant": "#47464c", "primary-fixed": "#e3e1f1", "surface-container-highest": "#e3e0f2", "on-secondary": "#ffffff", "inverse-surface": "#2f2f3c", "secondary": "#974800", "background": "#fcf8ff", "on-primary-fixed-variant": "#464652", "secondary-container": "#fe8523", "primary-container": "#2e2e3a", "tertiary-container": "#003719", "error-container": "#ffdad6", "primary-fixed-dim": "#c7c5d4", "surface-dim": "#dbd8e9", "surface-bright": "#fcf8ff", "surface": "#fcf8ff", "primary": "#191925", "error": "#ba1a1a", "outline-variant": "#c8c5cc", "secondary-fixed": "#ffdbc7", "on-error": "#ffffff", "on-surface": "#1a1a27", "on-tertiary": "#ffffff", "secondary-fixed-dim": "#ffb688", "surface-container": "#efecfd", "surface-container-lowest": "#ffffff", "tertiary": "#001f0b", "inverse-on-surface": "#f2efff", "on-tertiary-container": "#3eaa65", "on-primary": "#ffffff", "on-secondary-container": "#622d00" }, "borderRadius": { "DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem" }, "spacing": { "gutter": "16px", "unit": "4px", "container-padding": "24px", "row-height-dense": "32px", "row-height-standard": "48px" }, "fontFamily": { "data-table": ["Inter"], "headline-lg-mobile": ["Inter"], "headline-lg": ["Inter"], "label-caps": ["Inter"], "headline-md": ["Inter"], "body-main": ["Inter"] }, "fontSize": { "data-table": ["14px", { "lineHeight": "20px", "fontWeight": "500" }], "headline-lg-mobile": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700" }], "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }], "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }], "headline-md": ["20px", { "lineHeight": "28px", "fontWeight": "600" }], "body-main": ["14px", { "lineHeight": "20px", "fontWeight": "400" }] } } } }</script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet" />
+</head>
+
+<body class="bg-background font-body-main text-on-surface">
+    <aside class="fixed top-0 left-0 w-64 h-full bg-primary-container text-on-primary z-50 flex flex-col">
+        <div class="h-16 flex items-center px-container-padding border-b border-on-primary-fixed-variant"><span
+                class="font-headline-md text-on-primary">AutoTransparência</span></div>
+        <nav class="flex-1 py-gutter flex flex-col gap-unit"
+            data-active-classes="bg-on-primary-fixed-variant text-on-primary"><a
+                class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors"
+                data-path="painel" href="#">Painel</a><a
+                class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors"
+                data-path="estoque" href="#">Estoque</a><a
+                class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors flex items-center justify-between"
+                data-path="validacao" href="#"><span>Validação</span><span
+                    class="bg-error text-on-error rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-bold">7</span></a><a
+                class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors"
+                data-path="interesses" href="#">Interesses</a><a
+                class="px-container-padding py-unit text-on-primary-container hover:bg-on-primary-fixed-variant transition-colors"
+                data-path="compras" href="#">Compras</a></nav>
+    </aside>
+    <header
+        class="fixed top-0 left-64 right-0 h-16 bg-surface border-b border-outline-variant z-40 px-container-padding flex items-center justify-between">
+        <span
+            class="text-body-main font-semibold text-on-surface-variant underline decoration-secondary-container decoration-2 underline-offset-4 uppercase tracking-wider">Área
+            de operação</span>
+        <div class="flex items-center gap-gutter">
+            <div class="text-right">
+                <p class="text-body-main font-semibold text-on-surface">Ana Souza</p>
+                <p class="text-[11px] text-on-surface-variant font-label-caps">Operadora Sênior</p>
+            </div>
+            <div
+                class="w-10 h-10 rounded-lg bg-surface-container-high flex items-center justify-center overflow-hidden border border-outline-variant">
+                <span class="material-symbols-outlined text-on-surface-variant">person</span></div>
+        </div>
+    </header>
+    <main class="pl-64 pt-16 w-full min-h-screen">
+        <div class="flex flex-col w-full relative">
+            <div class="px-container-padding pb-container-padding flex flex-col gap-row-height-standard">
+                <div class="flex flex-col gap-unit pt-gutter">
+                    <div class="flex items-center gap-gutter">
+                        <a class="text-on-surface-variant hover:text-on-surface flex items-center justify-center w-8 h-8 border border-outline-variant rounded-full transition-colors bg-surface hover:bg-surface-variant"
+                            href="#">
+                            <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+                        </a>
+                        <div class="flex flex-col">
+                            <span class="font-label-caps text-on-surface-variant tracking-wider uppercase">Solicitação
+                                #REQ-2023-8941</span>
+                            <h1 class="font-headline-lg text-on-surface">Licença de Software de Design Corporativo</h1>
+                        </div>
+                    </div>
+                    <div class="pl-12 flex gap-gutter mt-unit">
+                        <span
+                            class="inline-flex items-center gap-unit px-3 py-1 rounded-full border border-outline-variant bg-surface-container text-on-surface text-[12px] font-bold">
+                            <span class="w-2 h-2 rounded-full bg-secondary-container"></span>
+                            Em Análise
+                        </span>
+                        <span class="text-body-main text-on-surface-variant flex items-center gap-unit">
+                            <span class="material-symbols-outlined text-[16px]">calendar_today</span>
+                            Solicitado em 12 Out 2023
+                        </span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-12 gap-gutter">
+                    <div class="col-span-8 flex flex-col gap-gutter">
+                        <div class="bg-surface border border-outline-variant rounded-lg p-gutter">
+                            <h2 class="font-headline-md text-on-surface mb-gutter">Detalhes do Requerente</h2>
+                            <div class="grid grid-cols-2 gap-y-gutter gap-x-8">
+                                <div class="flex flex-col gap-unit">
+                                    <span class="font-label-caps text-on-surface-variant">Nome Completo</span>
+                                    <span class="font-body-main text-on-surface font-medium">Carlos Eduardo Silva</span>
+                                </div>
+                                <div class="flex flex-col gap-unit">
+                                    <span class="font-label-caps text-on-surface-variant">Departamento</span>
+                                    <span class="font-body-main text-on-surface font-medium">Marketing &
+                                        Comunicação</span>
+                                </div>
+                                <div class="flex flex-col gap-unit">
+                                    <span class="font-label-caps text-on-surface-variant">Cargo</span>
+                                    <span class="font-body-main text-on-surface font-medium">Designer Sênior</span>
+                                </div>
+                                <div class="flex flex-col gap-unit">
+                                    <span class="font-label-caps text-on-surface-variant">Centro de Custo</span>
+                                    <span class="font-body-main text-on-surface font-medium">CC-MKT-092</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-surface border border-outline-variant rounded-lg p-gutter">
+                            <h2 class="font-headline-md text-on-surface mb-gutter">Informações do Item</h2>
+                            <div class="flex flex-col gap-gutter">
+                                <div class="flex justify-between items-start pb-gutter border-b border-outline-variant">
+                                    <div class="flex flex-col gap-unit">
+                                        <span class="font-body-main text-on-surface font-semibold text-[16px]">Adobe
+                                            Creative Cloud for Teams</span>
+                                        <span class="font-body-main text-on-surface-variant">Assinatura Anual - Licença
+                                            Nominal</span>
+                                    </div>
+                                    <span class="font-headline-md text-on-surface">R$ 4.890,00</span>
+                                </div>
+                                <div class="flex flex-col gap-unit">
+                                    <span class="font-label-caps text-on-surface-variant">Justificativa da
+                                        Necessidade</span>
+                                    <p class="font-body-main text-on-surface">
+                                        Necessário para a equipe de design de performance criar campanhas para o Q4. A
+                                        licença atual expira na próxima semana e precisamos manter a continuidade dos
+                                        projetos em andamento, especialmente a campanha de Black Friday.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-span-4 flex flex-col gap-gutter">
+                        <div class="bg-surface border border-outline-variant rounded-lg p-gutter">
+                            <h2 class="font-headline-md text-on-surface mb-gutter">Anexos</h2>
+                            <div class="flex flex-col gap-unit">
+                                <a class="flex items-center justify-between p-3 border border-outline-variant rounded hover:bg-surface-variant transition-colors group"
+                                    href="#">
+                                    <div class="flex items-center gap-3">
+                                        <span
+                                            class="material-symbols-outlined text-on-surface-variant">description</span>
+                                        <div class="flex flex-col">
+                                            <span
+                                                class="font-body-main text-on-surface font-medium text-[13px] group-hover:underline">Orcamento_Adobe_Q4.pdf</span>
+                                            <span class="font-body-main text-on-surface-variant text-[11px]">245
+                                                KB</span>
+                                        </div>
+                                    </div>
+                                    <span
+                                        class="material-symbols-outlined text-on-surface-variant group-hover:text-primary">download</span>
+                                </a>
+                                <a class="flex items-center justify-between p-3 border border-outline-variant rounded hover:bg-surface-variant transition-colors group"
+                                    href="#">
+                                    <div class="flex items-center gap-3">
+                                        <span class="material-symbols-outlined text-on-surface-variant">mail</span>
+                                        <div class="flex flex-col">
+                                            <span
+                                                class="font-body-main text-on-surface font-medium text-[13px] group-hover:underline">Aprovacao_Diretoria_Email.eml</span>
+                                            <span class="font-body-main text-on-surface-variant text-[11px]">1.2
+                                                MB</span>
+                                        </div>
+                                    </div>
+                                    <span
+                                        class="material-symbols-outlined text-on-surface-variant group-hover:text-primary">download</span>
+                                </a>
+                            </div>
+                        </div>
+                        <div class="bg-surface border border-outline-variant rounded-lg p-gutter">
+                            <h2 class="font-headline-md text-on-surface mb-gutter">Histórico</h2>
+                            <div class="relative pl-6">
+                                <div class="absolute left-[11px] top-2 bottom-0 w-px bg-outline-variant"></div>
+                                <div class="relative mb-6">
+                                    <div
+                                        class="absolute -left-[28px] top-1 w-3 h-3 rounded-full bg-surface border-2 border-secondary-container">
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <span class="font-body-main text-on-surface font-medium text-[13px]">Em análise
+                                            pela Operação</span>
+                                        <span class="font-body-main text-on-surface-variant text-[11px]">12 Out 2023,
+                                            14:30</span>
+                                    </div>
+                                </div>
+                                <div class="relative">
+                                    <div
+                                        class="absolute -left-[28px] top-1 w-3 h-3 rounded-full bg-outline-variant border-2 border-surface">
+                                    </div>
+                                    <div class="flex flex-col gap-1">
+                                        <span class="font-body-main text-on-surface font-medium text-[13px]">Solicitação
+                                            enviada</span>
+                                        <span class="font-body-main text-on-surface-variant text-[11px]">12 Out 2023,
+                                            09:15 • por Carlos E. Silva</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div
+                class="fixed bottom-0 left-64 right-0 bg-surface border-t border-outline-variant shadow-[0_-4px_20px_rgba(0,0,0,0.05)] z-40">
+                <div class="w-full bg-error-container/20 border-b border-[#ba1a1a]/30 relative overflow-hidden transition-all duration-300 ease-in-out"
+                    id="rejection-panel">
+                    <div class="max-w-[800px] mx-auto p-gutter pt-6 pb-6">
+                        <div class="flex items-center gap-2 mb-4">
+                            <span class="material-symbols-outlined text-[#ba1a1a]">warning</span>
+                            <h3 class="font-headline-md text-[#ba1a1a]">Rejeitar solicitação</h3>
+                        </div>
+                        <div class="flex flex-col gap-2">
+                            <label class="font-label-caps text-[#ba1a1a]" for="rejection-reason">MOTIVO DA REJEIÇÃO
+                                *</label>
+                            <textarea
+                                class="w-full p-3 bg-surface border border-[#ba1a1a]/50 rounded-lg text-on-surface font-body-main focus:outline-none focus:border-[#ba1a1a] focus:ring-1 focus:ring-[#ba1a1a] resize-none"
+                                id="rejection-reason" oninput="checkRejectionReason()"
+                                placeholder="Descreva o motivo detalhado para a rejeição desta solicitação. Este texto será enviado ao requerente."
+                                rows="3"></textarea>
+                            <span class="font-body-main text-[#ba1a1a]/70 text-[12px] mt-1">O preenchimento deste campo
+                                é obrigatório para confirmar a rejeição.</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center justify-between px-container-padding py-gutter h-20 bg-surface">
+                    <div class="flex items-center gap-gutter">
+                        <button
+                            class="px-6 py-2 rounded font-body-main font-semibold text-outline-variant bg-surface border border-outline-variant/30 cursor-not-allowed opacity-50 flex items-center gap-2"
+                            disabled="">
+                            <span class="material-symbols-outlined text-[18px]">check_circle</span>
+                            Aprovar solicitação
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-gutter">
+                        <button
+                            class="px-6 py-2 rounded font-body-main font-semibold text-on-surface-variant hover:bg-surface-variant transition-colors"
+                            onclick="cancelRejection()">
+                            Cancelar
+                        </button>
+                        <button
+                            class="px-6 py-2 rounded font-body-main font-semibold text-on-error bg-[#ba1a1a] opacity-50 cursor-not-allowed transition-all flex items-center gap-2"
+                            disabled="" id="btn-confirm-reject">
+                            <span class="material-symbols-outlined text-[18px]">block</span>
+                            Confirmar rejeição
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="h-40"></div>
+        </div>
+        <script>
+            function checkRejectionReason() {
+                const textarea = document.getElementById('rejection-reason');
+                const btnConfirm = document.getElementById('btn-confirm-reject');
+
+                if (textarea.value.trim().length > 5) {
+                    btnConfirm.disabled = false;
+                    btnConfirm.classList.remove('opacity-50', 'cursor-not-allowed');
+                    btnConfirm.classList.add('hover:bg-[#93000a]');
+                } else {
+                    btnConfirm.disabled = true;
+                    btnConfirm.classList.add('opacity-50', 'cursor-not-allowed');
+                    btnConfirm.classList.remove('hover:bg-[#93000a]');
+                }
+            }
+
+            function cancelRejection() {
+                document.getElementById('rejection-reason').value = '';
+                checkRejectionReason();
+                // Em um cenário real, isso fecharia o painel ou voltaria para a visualização padrão
+                console.log("Rejeição cancelada");
+            }
+        </script>
+    </main>
+</body>
+
+</html>

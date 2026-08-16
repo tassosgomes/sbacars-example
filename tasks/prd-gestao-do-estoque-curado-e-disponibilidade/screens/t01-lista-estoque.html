@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+
+<html lang="pt-br" style="">
+
+<head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <style>
+        @layer base {
+
+            html,
+            body {
+                margin: 0;
+                padding: 0;
+            }
+
+            body {
+                overscroll-behavior: none;
+            }
+
+            main> :first-child {
+                margin-top: 0 !important;
+            }
+
+            main> :last-child {
+                margin-bottom: 0 !important;
+            }
+        }
+
+        ::-webkit-scrollbar {
+            display: none;
+        }
+    </style>
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    <script id="tailwind-config">
+        tailwind.config = {
+            theme: {
+                extend: {
+                    "colors": {
+                        "outline-variant": "#c8c5cc",
+                        "secondary": "#006d37",
+                        "tertiary-container": "#4f2300",
+                        "on-error-container": "#93000a",
+                        "on-secondary-fixed-variant": "#005228",
+                        "surface-dim": "#d9d9e1",
+                        "surface-container-highest": "#e2e2ea",
+                        "tertiary-fixed": "#ffdbc7",
+                        "surface-container": "#ededf5",
+                        "on-secondary": "#ffffff",
+                        "on-background": "#191b21",
+                        "inverse-primary": "#c7c5d4",
+                        "on-surface-variant": "#47464c",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed-dim": "#ffb688",
+                        "on-tertiary-fixed-variant": "#733600",
+                        "primary-container": "#2e2e3a",
+                        "tertiary": "#301200",
+                        "primary": "#191925",
+                        "on-surface": "#191b21",
+                        "action-orange": "#FC8422",
+                        "surface-container-high": "#e7e7ef",
+                        "primary-fixed-dim": "#c7c5d4",
+                        "surface-container-low": "#f3f3fb",
+                        "surface": "#f9f9ff",
+                        "on-error": "#ffffff",
+                        "on-primary-container": "#9795a4",
+                        "deep-navy": "#2E2E3A",
+                        "inverse-surface": "#2e3036",
+                        "secondary-container": "#8ef9ab",
+                        "trust-green": "#018444",
+                        "outline": "#78767c",
+                        "border-muted": "#CDCDDB",
+                        "on-primary-fixed-variant": "#464652",
+                        "error-container": "#ffdad6",
+                        "background": "#f9f9ff",
+                        "text-main": "#2E2E3A",
+                        "text-muted": "#4A4A4A",
+                        "on-secondary-fixed": "#00210c",
+                        "on-secondary-container": "#00743b",
+                        "surface-bright": "#f9f9ff",
+                        "error": "#ba1a1a",
+                        "inverse-on-surface": "#f0f0f8",
+                        "surface-variant": "#e2e2ea",
+                        "secondary-fixed-dim": "#72dc91",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-tint": "#5e5d6b",
+                        "on-tertiary": "#ffffff",
+                        "on-tertiary-fixed": "#311300",
+                        "secondary-fixed": "#8ef9ab",
+                        "on-tertiary-container": "#eb7711",
+                        "primary-fixed": "#e3e1f1",
+                        "on-primary-fixed": "#1a1b26"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "stack-lg": "32px",
+                        "unit": "8px",
+                        "margin-desktop": "40px",
+                        "container-max": "1280px",
+                        "stack-sm": "8px",
+                        "stack-md": "16px",
+                        "margin-mobile": "16px",
+                        "gutter": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-lg": ["Inter"],
+                        "headline-md": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "data-tabular": ["Inter"],
+                        "body-md": ["Inter"],
+                        "headline-lg-mobile": ["Inter"],
+                        "headline-xl": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "body-sm": ["Inter"]
+                    },
+                    "fontSize": {
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "data-tabular": ["14px", { "lineHeight": "20px", "fontWeight": "500" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["24px", { "lineHeight": "32px", "fontWeight": "700" }],
+                        "headline-xl": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-caps": ["12px", { "lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700" }],
+                        "body-sm": ["14px", { "lineHeight": "20px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        };
+    </script>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap"
+        rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet" />
+</head>
+
+<body class="bg-background font-body-md text-on-surface">
+    <aside class="fixed left-0 top-0 h-full w-[256px] bg-deep-navy z-50 flex flex-col pt-stack-lg">
+        <div class="px-stack-lg mb-10">
+            <div class="text-body-lg font-semibold text-on-primary">AutoTransparência</div>
+            <div class="text-label-caps text-on-primary-container">Backoffice</div>
+        </div>
+        <nav class="flex-1 px-stack-sm flex flex-col gap-unit" data-active-classes="bg-primary text-on-primary">
+            <a class="flex items-center px-stack-md py-stack-sm rounded-lg text-on-primary-container hover:text-on-primary transition-colors"
+                data-path="painel" href="#">
+                <span class="material-symbols-outlined mr-stack-sm">dashboard</span>
+                <span class="text-body-sm">Painel</span>
+            </a>
+            <a aria-current="page"
+                class="flex items-center px-stack-md py-stack-sm rounded-lg transition-colors bg-primary text-on-primary"
+                data-path="estoque" href="#">
+                <span class="material-symbols-outlined mr-stack-sm">directions_car</span>
+                <span class="text-body-sm">Estoque</span>
+            </a>
+            <a class="flex items-center justify-between px-stack-md py-stack-sm rounded-lg text-on-primary-container hover:text-on-primary transition-colors"
+                data-path="validacao" href="#">
+                <div class="flex items-center">
+                    <span class="material-symbols-outlined mr-stack-sm">verified_user</span>
+                    <span class="text-body-sm">Validação</span>
+                </div>
+                <span
+                    class="flex items-center justify-center w-5 h-5 bg-error text-on-error text-[10px] rounded-full font-bold">7</span>
+            </a>
+            <a class="flex items-center px-stack-md py-stack-sm rounded-lg text-on-primary-container hover:text-on-primary transition-colors"
+                data-path="interesses" href="#">
+                <span class="material-symbols-outlined mr-stack-sm">favorite</span>
+                <span class="text-body-sm">Interesses</span>
+            </a>
+            <a class="flex items-center px-stack-md py-stack-sm rounded-lg text-on-primary-container hover:text-on-primary transition-colors"
+                data-path="compras" href="#">
+                <span class="material-symbols-outlined mr-stack-sm">shopping_cart</span>
+                <span class="text-body-sm">Compras</span>
+            </a>
+        </nav>
+    </aside>
+    <div class="pl-[256px]">
+        <header
+            class="fixed top-0 left-[256px] right-0 h-16 bg-surface-container-lowest border-b border-border-muted z-40 px-margin-desktop flex items-center justify-between">
+            <div class="text-body-sm text-text-muted font-medium">Área de operação</div>
+            <div class="flex items-center gap-stack-lg">
+                <div class="flex items-center gap-stack-sm">
+                    <span class="text-body-sm text-on-surface font-medium">Ana Souza</span>
+                    <div class="w-8 h-8 rounded-full bg-primary flex items-center justify-center">
+                        <span class="material-symbols-outlined text-on-primary text-[18px]">person</span>
+                    </div>
+                </div>
+                <button class="text-body-sm text-on-surface-variant hover:text-primary transition-colors">Sair</button>
+            </div>
+        </header>
+        <main class="p-margin-desktop pt-[104px]">
+            <div class="flex items-center justify-between mb-stack-lg">
+                <div>
+                    <h1 class="text-headline-lg text-text-main font-bold">Estoque curado</h1>
+                    <p class="text-body-sm text-text-muted mt-1">142 veículos</p>
+                </div>
+                <button
+                    class="bg-action-orange text-white px-4 py-2.5 rounded-lg flex items-center gap-2 font-medium hover:bg-opacity-90 transition-colors">
+                    Cadastrar veículo
+                    <span class="material-symbols-outlined text-[20px]">add</span>
+                </button>
+            </div>
+            <div
+                class="bg-surface-container-lowest border border-border-muted rounded-xl p-4 mb-stack-lg flex flex-wrap items-center gap-4">
+                <div class="relative w-[320px]">
+                    <span
+                        class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-outline">search</span>
+                    <input
+                        class="w-full pl-10 pr-4 py-2 border border-border-muted rounded-lg text-body-sm focus:outline-none focus:border-deep-navy focus:ring-1 focus:ring-deep-navy transition-all"
+                        placeholder="Buscar por placa, modelo ou chassi..." type="text" />
+                </div>
+                <div class="h-6 w-px bg-border-muted hidden md:block"></div>
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0">
+                    <button
+                        class="px-3 py-1.5 rounded-full bg-deep-navy text-white text-body-sm font-medium whitespace-nowrap">Todas</button>
+                    <button
+                        class="px-3 py-1.5 rounded-full border border-border-muted text-text-muted hover:bg-surface-container-low transition-colors text-body-sm whitespace-nowrap">Em
+                        preparação</button>
+                    <button
+                        class="px-3 py-1.5 rounded-full border border-border-muted text-text-muted hover:bg-surface-container-low transition-colors text-body-sm whitespace-nowrap">Elegível</button>
+                    <button
+                        class="px-3 py-1.5 rounded-full border border-border-muted text-text-muted hover:bg-surface-container-low transition-colors text-body-sm whitespace-nowrap">Suspensa</button>
+                    <button
+                        class="px-3 py-1.5 rounded-full border border-border-muted text-text-muted hover:bg-surface-container-low transition-colors text-body-sm whitespace-nowrap">Retirada</button>
+                </div>
+                <div class="flex items-center gap-4 ml-auto">
+                    <select
+                        class="border border-border-muted rounded-lg text-body-sm py-2 pl-3 pr-8 focus:outline-none focus:border-deep-navy">
+                        <option>Disponibilidade</option>
+                        <option>Disponível</option>
+                        <option>Reservado</option>
+                        <option>Vendido</option>
+                    </select>
+                    <select
+                        class="border border-border-muted rounded-lg text-body-sm py-2 pl-3 pr-8 focus:outline-none focus:border-deep-navy">
+                        <option>UF</option>
+                        <option>SP</option>
+                        <option>RJ</option>
+                        <option>MG</option>
+                    </select>
+                    <button
+                        class="text-body-sm text-text-muted hover:text-deep-navy font-medium transition-colors">Limpar
+                        filtros</button>
+                </div>
+            </div>
+            <div class="bg-surface-container-lowest border border-border-muted rounded-xl overflow-x-auto mb-stack-lg">
+                <table class="w-full text-left border-collapse">
+                    <thead>
+                        <tr class="border-b border-border-muted">
+                            <th class="py-4 px-4 text-label-caps text-outline uppercase font-bold tracking-[0.05em]">
+                                Veículo</th>
+                            <th class="py-4 px-4 text-label-caps text-outline uppercase font-bold tracking-[0.05em]">Ano
+                            </th>
+                            <th
+                                class="py-4 px-4 text-label-caps text-outline uppercase font-bold tracking-[0.05em] text-right">
+                                KM</th>
+                            <th class="py-4 px-4 text-label-caps text-outline uppercase font-bold tracking-[0.05em]">
+                                Localização</th>
+                            <th
+                                class="py-4 px-4 text-label-caps text-outline uppercase font-bold tracking-[0.05em] text-right">
+                                Preço Oficial</th>
+                            <th class="py-4 px-4 text-label-caps text-outline uppercase font-bold tracking-[0.05em]">
+                                Situação</th>
+                            <th class="py-4 px-4 text-label-caps text-outline uppercase font-bold tracking-[0.05em]">
+                                Disponibilidade</th>
+                            <th class="py-4 px-4 text-label-caps text-outline uppercase font-bold tracking-[0.05em]">
+                                Pendências</th>
+                            <th class="py-4 px-4 text-label-caps text-outline uppercase font-bold tracking-[0.05em]">
+                                Atualizado em</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-body-sm divide-y divide-border-muted">
+                        <tr class="hover:bg-surface-container-low transition-colors group">
+                            <td class="py-3 px-4">
+                                <div
+                                    class="font-medium text-text-main group-hover:text-action-orange transition-colors cursor-pointer">
+                                    Honda Civic Touring 1.5 Turbo</div>
+                                <div class="text-xs text-text-muted font-mono mt-0.5">ABC-1234</div>
+                            </td>
+                            <td class="py-3 px-4 text-text-main">2021/2022</td>
+                            <td class="py-3 px-4 text-text-main text-right tabular-nums">24.500</td>
+                            <td class="py-3 px-4 text-text-main">Campinas/SP</td>
+                            <td class="py-3 px-4 font-medium text-text-main text-right tabular-nums">R$ 158.900</td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-green-100 text-green-800 text-xs font-medium">Elegível</span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-xs font-medium">Disponível</span>
+                            </td>
+                            <td class="py-3 px-4 text-text-muted text-center">-</td>
+                            <td class="py-3 px-4 text-text-muted text-xs tabular-nums">12/10/2023 14:30</td>
+                        </tr>
+                        <tr class="bg-surface-container-low hover:bg-surface-container transition-colors group">
+                            <td class="py-3 px-4">
+                                <div
+                                    class="font-medium text-text-main group-hover:text-action-orange transition-colors cursor-pointer">
+                                    Toyota Corolla Altis 2.0</div>
+                                <div class="text-xs text-text-muted font-mono mt-0.5">XYZ-9876</div>
+                            </td>
+                            <td class="py-3 px-4 text-text-main">2022/2023</td>
+                            <td class="py-3 px-4 text-text-main text-right tabular-nums">12.300</td>
+                            <td class="py-3 px-4 text-text-main">São Paulo/SP</td>
+                            <td class="py-3 px-4 font-medium text-text-main text-right tabular-nums">R$ 165.000</td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-yellow-100 text-yellow-800 text-xs font-medium">Em
+                                    preparação</span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-800 text-xs font-medium">Indisponível</span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-100 text-red-800 text-xs font-medium">
+                                    <span class="material-symbols-outlined text-[14px]">schedule</span>
+                                    Laudo cautelar
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-text-muted text-xs tabular-nums">11/10/2023 09:15</td>
+                        </tr>
+                        <tr class="hover:bg-surface-container-low transition-colors group">
+                            <td class="py-3 px-4">
+                                <div
+                                    class="font-medium text-text-main group-hover:text-action-orange transition-colors cursor-pointer">
+                                    Jeep Compass Longitude T270</div>
+                                <div class="text-xs text-text-muted font-mono mt-0.5">DEF-5678</div>
+                            </td>
+                            <td class="py-3 px-4 text-text-main">2021/2022</td>
+                            <td class="py-3 px-4 text-text-main text-right tabular-nums">38.100</td>
+                            <td class="py-3 px-4 text-text-main">Belo Horizonte/MG</td>
+                            <td class="py-3 px-4 font-medium text-text-main text-right tabular-nums">R$ 142.500</td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-green-100 text-green-800 text-xs font-medium">Elegível</span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-orange-100 text-orange-800 text-xs font-medium">Reservado</span>
+                            </td>
+                            <td class="py-3 px-4 text-text-muted text-center">-</td>
+                            <td class="py-3 px-4 text-text-muted text-xs tabular-nums">10/10/2023 16:45</td>
+                        </tr>
+                        <tr class="bg-surface-container-low hover:bg-surface-container transition-colors group">
+                            <td class="py-3 px-4">
+                                <div
+                                    class="font-medium text-text-main group-hover:text-action-orange transition-colors cursor-pointer">
+                                    VW T-Cross Highline 250 TSI</div>
+                                <div class="text-xs text-text-muted font-mono mt-0.5">GHI-9012</div>
+                            </td>
+                            <td class="py-3 px-4 text-text-main">2020/2021</td>
+                            <td class="py-3 px-4 text-text-main text-right tabular-nums">45.000</td>
+                            <td class="py-3 px-4 text-text-main">Ribeirão Preto/SP</td>
+                            <td class="py-3 px-4 font-medium text-text-main text-right tabular-nums">R$ 115.800</td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-red-100 text-red-800 text-xs font-medium">Suspensa</span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-800 text-xs font-medium">Indisponível</span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-red-100 text-red-800 text-xs font-medium">
+                                    <span class="material-symbols-outlined text-[14px]">warning</span>
+                                    Multas
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-text-muted text-xs tabular-nums">09/10/2023 11:20</td>
+                        </tr>
+                        <tr class="hover:bg-surface-container-low transition-colors group">
+                            <td class="py-3 px-4">
+                                <div
+                                    class="font-medium text-text-main group-hover:text-action-orange transition-colors cursor-pointer">
+                                    Hyundai HB20 Platinum Plus</div>
+                                <div class="text-xs text-text-muted font-mono mt-0.5">JKL-3456</div>
+                            </td>
+                            <td class="py-3 px-4 text-text-main">2023/2023</td>
+                            <td class="py-3 px-4 text-text-main text-right tabular-nums">5.200</td>
+                            <td class="py-3 px-4 text-text-main">Rio de Janeiro/RJ</td>
+                            <td class="py-3 px-4 font-medium text-text-main text-right tabular-nums">R$ 102.900</td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-green-100 text-green-800 text-xs font-medium">Elegível</span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-xs font-medium">Disponível</span>
+                            </td>
+                            <td class="py-3 px-4 text-text-muted text-center">-</td>
+                            <td class="py-3 px-4 text-text-muted text-xs tabular-nums">08/10/2023 15:10</td>
+                        </tr>
+                        <tr class="bg-surface-container-low hover:bg-surface-container transition-colors group">
+                            <td class="py-3 px-4">
+                                <div
+                                    class="font-medium text-text-main group-hover:text-action-orange transition-colors cursor-pointer">
+                                    Chevrolet Onix Premier Turbo</div>
+                                <div class="text-xs text-text-muted font-mono mt-0.5">MNO-7890</div>
+                            </td>
+                            <td class="py-3 px-4 text-text-main">2022/2022</td>
+                            <td class="py-3 px-4 text-text-main text-right tabular-nums">18.400</td>
+                            <td class="py-3 px-4 text-text-main">Curitiba/PR</td>
+                            <td class="py-3 px-4 font-medium text-text-main text-right tabular-nums">R$ 98.500</td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-green-100 text-green-800 text-xs font-medium">Elegível</span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-green-100 text-green-800 text-xs font-medium">Vendido</span>
+                            </td>
+                            <td class="py-3 px-4 text-text-muted text-center">-</td>
+                            <td class="py-3 px-4 text-text-muted text-xs tabular-nums">07/10/2023 10:05</td>
+                        </tr>
+                        <tr class="hover:bg-surface-container-low transition-colors group">
+                            <td class="py-3 px-4">
+                                <div
+                                    class="font-medium text-text-main group-hover:text-action-orange transition-colors cursor-pointer">
+                                    Fiat Pulse Impetus 200 Turbo</div>
+                                <div class="text-xs text-text-muted font-mono mt-0.5">PQR-1234</div>
+                            </td>
+                            <td class="py-3 px-4 text-text-main">2022/2023</td>
+                            <td class="py-3 px-4 text-text-main text-right tabular-nums">15.800</td>
+                            <td class="py-3 px-4 text-text-main">Goiânia/GO</td>
+                            <td class="py-3 px-4 font-medium text-text-main text-right tabular-nums">R$ 112.000</td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-800 text-xs font-medium">Retirada</span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-800 text-xs font-medium">Indisponível</span>
+                            </td>
+                            <td class="py-3 px-4 text-text-muted text-center">-</td>
+                            <td class="py-3 px-4 text-text-muted text-xs tabular-nums">06/10/2023 14:50</td>
+                        </tr>
+                        <tr class="bg-surface-container-low hover:bg-surface-container transition-colors group">
+                            <td class="py-3 px-4">
+                                <div
+                                    class="font-medium text-text-main group-hover:text-action-orange transition-colors cursor-pointer">
+                                    Renault Kwid Outsider 1.0</div>
+                                <div class="text-xs text-text-muted font-mono mt-0.5">STU-5678</div>
+                            </td>
+                            <td class="py-3 px-4 text-text-main">2023/2024</td>
+                            <td class="py-3 px-4 text-text-main text-right tabular-nums">2.100</td>
+                            <td class="py-3 px-4 text-text-main">São Paulo/SP</td>
+                            <td class="py-3 px-4 font-medium text-text-main text-right tabular-nums">R$ 68.900</td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-yellow-100 text-yellow-800 text-xs font-medium">Em
+                                    preparação</span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center px-2 py-1 rounded-md bg-gray-100 text-gray-800 text-xs font-medium">Indisponível</span>
+                            </td>
+                            <td class="py-3 px-4">
+                                <span
+                                    class="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-yellow-100 text-yellow-800 text-xs font-medium">
+                                    <span class="material-symbols-outlined text-[14px]">schedule</span>
+                                    Higienização
+                                </span>
+                            </td>
+                            <td class="py-3 px-4 text-text-muted text-xs tabular-nums">05/10/2023 09:30</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="flex items-center justify-between">
+                <div class="text-body-sm text-text-muted">
+                    Mostrando 1-8 de 142
+                </div>
+                <div class="flex items-center gap-1">
+                    <button
+                        class="w-8 h-8 flex items-center justify-center rounded-lg border border-border-muted text-text-muted hover:bg-surface-container-low transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        disabled="">
+                        <span class="material-symbols-outlined text-[20px]">chevron_left</span>
+                    </button>
+                    <button
+                        class="w-8 h-8 flex items-center justify-center rounded-lg bg-deep-navy text-white text-body-sm font-medium">1</button>
+                    <button
+                        class="w-8 h-8 flex items-center justify-center rounded-lg border border-transparent text-text-main hover:bg-surface-container-low transition-colors text-body-sm font-medium">2</button>
+                    <button
+                        class="w-8 h-8 flex items-center justify-center rounded-lg border border-transparent text-text-main hover:bg-surface-container-low transition-colors text-body-sm font-medium">3</button>
+                    <span class="w-8 h-8 flex items-center justify-center text-text-muted">...</span>
+                    <button
+                        class="w-8 h-8 flex items-center justify-center rounded-lg border border-transparent text-text-main hover:bg-surface-container-low transition-colors text-body-sm font-medium">18</button>
+                    <button
+                        class="w-8 h-8 flex items-center justify-center rounded-lg border border-border-muted text-text-main hover:bg-surface-container-low transition-colors">
+                        <span class="material-symbols-outlined text-[20px]">chevron_right</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+</body>
+
+</html>
