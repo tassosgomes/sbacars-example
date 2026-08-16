@@ -9,15 +9,24 @@ namespace SbaCars.BuildingBlocks.Messaging;
 /// the same Rebus.ServiceProvider wiring that call configures.
 /// </summary>
 /// <remarks>
-/// In B2, this exact class starts publishing from inside the outbox's <c>RebusTransactionScope</c>
-/// instead of calling <see cref="IBus.Publish"/> directly — the outbox enlists the publish in the
-/// same transaction as the EF Core <c>SaveChanges</c> that produced the event, so a use case never
-/// observes "the event was published but the transaction that produced it rolled back" or vice
-/// versa. No use case that depends on <see cref="IIntegrationEventPublisher"/> needs to change for
-/// that to happen; only this class' body does.
+/// In B2, this class stages events on <see cref="IOutboxMessageStaging"/> when persistence is
+/// registered; <see cref="SbaCars.BuildingBlocks.Persistence.EfUnitOfWork{TContext}"/> publishes
+/// from inside the outbox's <see cref="Rebus.Transport.RebusTransactionScope"/> during
+/// <c>SaveChangesAsync</c>, enlisting the publish in the same transaction as the EF Core
+/// <c>SaveChanges</c> that produced the event.
 /// </remarks>
-public sealed class RebusIntegrationEventPublisher(IBus bus) : IIntegrationEventPublisher
+public sealed class RebusIntegrationEventPublisher(IBus bus, IOutboxTransaction outboxTransaction)
+    : IIntegrationEventPublisher
 {
-    public Task PublishAsync(object integrationEvent, CancellationToken cancellationToken = default) =>
-        bus.Publish(integrationEvent);
+    public async Task PublishAsync(object integrationEvent, CancellationToken cancellationToken = default)
+    {
+        if (outboxTransaction is IOutboxMessageStaging staging)
+        {
+            staging.Stage(integrationEvent);
+            return;
+        }
+
+        await outboxTransaction.EnsureOpenAsync(cancellationToken).ConfigureAwait(false);
+        await bus.Publish(integrationEvent).ConfigureAwait(false);
+    }
 }

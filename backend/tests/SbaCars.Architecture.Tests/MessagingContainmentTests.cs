@@ -3,13 +3,15 @@ namespace SbaCars.Architecture.Tests;
 /// <summary>
 /// Keeps the messaging transport out of the layers that must not know about it (§2.2, §3.3, §6.3.1
 /// of the architecture plan): <c>Domain</c>/<c>Application</c> only ever see
-/// <c>IIntegrationEventPublisher</c> (§6, D5 of the B1 task spec), never <c>Rebus</c> or
-/// <c>RabbitMQ.Client</c> directly — the concrete adapter lives exclusively in
-/// <c>BuildingBlocks.Messaging</c>, the same split <see cref="DbContextContainmentTests"/> already
-/// enforces for <c>DbContext</c>. It also keeps the broker off the edge: §6.3.1 sizes the whole
-/// connection budget against exactly four bus connections (one per domain service) plus their
-/// readiness probes — a gateway that could reach <c>BuildingBlocks.Messaging</c> would break that
-/// count, and §2.3 already keeps gateways HTTP-only towards services in the first place.
+/// <c>IIntegrationEventPublisher</c> and <c>IOutboxTransaction</c> (§6, D5/B2 of the task spec),
+/// never <c>Rebus</c> or <c>RabbitMQ.Client</c> directly — the concrete bus adapter lives in
+/// <c>BuildingBlocks.Messaging</c>, and the outbox enlistment glue lives in
+/// <c>BuildingBlocks.Persistence</c> (<see cref="EfUnitOfWork{TContext}"/>), the same split
+/// <see cref="DbContextContainmentTests"/> already enforces for <c>DbContext</c>. It also keeps the
+/// broker off the edge: §6.3.1 sizes the whole connection budget against exactly four bus connections
+/// (one per domain service) plus their readiness probes — a gateway that could reach
+/// <c>BuildingBlocks.Messaging</c> would break that count, and §2.3 already keeps gateways HTTP-only
+/// towards services in the first place.
 /// </summary>
 public sealed class MessagingContainmentTests
 {
@@ -26,8 +28,9 @@ public sealed class MessagingContainmentTests
             .ToArray();
 
         offenders.Should().BeEmpty(
-            "Domain and Application must depend only on IIntegrationEventPublisher (§2.2, §6, D5) — " +
-            $"Rebus/RabbitMQ.Client are BuildingBlocks.Messaging's concern alone; found in: {string.Join(", ", offenders)}");
+            "Domain and Application must depend only on IIntegrationEventPublisher/IOutboxTransaction (§2.2, §6, D5/B2) — " +
+            "Rebus/RabbitMQ.Client belong in BuildingBlocks.Messaging and BuildingBlocks.Persistence, not here; found in: " +
+            string.Join(", ", offenders));
     }
 
     /// <summary>

@@ -10,6 +10,10 @@
     <PackageReference Include="Rebus" />
     <PackageReference Include="Rebus.RabbitMq" />
     <PackageReference Include="Rebus.ServiceProvider" />
+    <!-- B2 — StoreInPostgreSql / TableName are used directly in AddSbaCarsMessaging, not only
+         transitively via Persistence. Pinning the reference here keeps that compile-time
+         dependency explicit. -->
+    <PackageReference Include="Rebus.PostgreSql" />
     <PackageReference Include="RabbitMQ.Client" />
     <PackageReference Include="Microsoft.Extensions.Options" />
     <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
@@ -43,6 +47,7 @@
          forbids. -->
     <ProjectReference Include="..\..\Contracts\SbaCars.Contracts\SbaCars.Contracts.csproj" />
     <ProjectReference Include="..\SbaCars.BuildingBlocks.Application\SbaCars.BuildingBlocks.Application.csproj" />
+    <ProjectReference Include="..\SbaCars.BuildingBlocks.Persistence\SbaCars.BuildingBlocks.Persistence.csproj" />
   </ItemGroup>
 
 </Project>

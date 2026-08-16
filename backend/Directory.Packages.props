@@ -52,6 +52,8 @@
     <PackageVersion Include="Rebus" Version="8.9.2" />
     <PackageVersion Include="Rebus.RabbitMq" Version="10.1.1" />
     <PackageVersion Include="Rebus.ServiceProvider" Version="10.7.2" />
+    <!-- B2 — outbox transacional por schema de serviço (§6.2): StoreInPostgreSql + UseOutbox. -->
+    <PackageVersion Include="Rebus.PostgreSql" Version="9.1.1" />
     <!-- Pinada explicitamente mesmo sendo a mesma versão que Rebus.RabbitMq já traz transitivamente
          (§6.3): o health check de B1 fala com o broker por conta própria, com sua própria conexão
          (ver RabbitMqConnectionProbe), então este pacote é uma dependência direta deste

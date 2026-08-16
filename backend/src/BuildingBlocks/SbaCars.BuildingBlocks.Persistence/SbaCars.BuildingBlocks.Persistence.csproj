@@ -13,6 +13,11 @@
          dependency), so referencing it here never pulls Kestrel/MVC/etc. into a plain data-access
          library. -->
     <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+    <!-- B2 — Rebus.PostgreSql for RebusTransactionScope/UseOutbox only; no ProjectReference to
+         BuildingBlocks.Messaging (§6.2: the enlistment glue lives here, not in use cases). -->
+    <PackageReference Include="Rebus" />
+    <PackageReference Include="Rebus.PostgreSql" />
+    <PackageReference Include="Npgsql" />
   </ItemGroup>
 
   <ItemGroup>

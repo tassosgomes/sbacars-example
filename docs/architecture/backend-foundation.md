@@ -1269,7 +1269,7 @@ inbox/idempotência, `SbaCars.Contracts`, saga e timeout persistidos.
 | # | Entrega | Pronto quando | Status |
 |---|---|---|---|
 | B1 | `BuildingBlocks.Messaging`: Rebus + RabbitMQ, topologia, envelope CloudEvents, retry/second-level/error queue, spans OTel | Serviço sobe, declara a topologia e a publicação aparece no trace | ✅ concluída |
-| B2 | Outbox do `Rebus.PostgreSql` por serviço + `IUnitOfWork` que enlista a transação do EF | Rollback de transação não publica evento — provado por teste | ⬜ pendente |
+| B2 | Outbox do `Rebus.PostgreSql` por serviço + `IUnitOfWork` que enlista a transação do EF | Rollback de transação não publica evento — provado por teste | ✅ concluída |
 | B3 | Inbox/idempotência própria (step de pipeline + tabela `inbox_message`) | Reentrega do mesmo `message_id` não duplica efeito — provado por teste | ⬜ pendente |
 | B4 | `SbaCars.Contracts` com os eventos dos Domain Docs + snapshot de schema | Mudança breaking em contrato quebra o build | ⬜ pendente |
 | B5 | Prova `foundation.ping` inventory → catalog | Teste de integração cobre outbox → broker → inbox, com trace correlacionado | ⬜ pendente |
@@ -1338,10 +1338,41 @@ diferença para o `amqps://` de um CloudAMQP gerenciado é configuração, e `Me
 já **reprova no boot** uma connection string `amqps://` que desligue validação de certificado — o
 §6.3.1 chama isso de "o erro clássico aqui").
 
-Fica fora, deliberadamente: outbox (B2), inbox/idempotência (B3), os eventos de negócio dos Domain
+Fica fora, deliberadamente: inbox/idempotência (B3), os eventos de negócio dos Domain
 Docs (B4), `foundation.ping` ponta a ponta (B5), saga e timeout persistidos (B6) e o job de expurgo
 (B7). O evento usado nos testes de integração chama-se `test.messaging-probe` — nome técnico, não de
 negócio — justamente para não antecipar B4 nem B5.
+
+**Estado em 2026-08-16 (B2):** outbox transacional entregue e verificado. Cada serviço passa o
+schema próprio para `AddSbaCarsMessaging(..., outboxSchema)`; quando `outboxSchema` é omitido, o
+comportamento permanece o de B1 (publicação direta, sem forwarder) — os testes de mensageria que só
+usam RabbitMQ continuam sem Postgres. A tabela `{schema}.outbox` é criada pelas migrations (`own_*`,
+DDL) com os identificadores entre aspas exatamente como o `Rebus.PostgreSql` espera; o runtime com
+`svc_*` encontra a tabela já existente e o `Initialize()` do storage vira no-op — não confiamos no
+auto-create do Rebus no boot da API.
+
+O acoplamento Rebus↔EF vive num único lugar: `EfUnitOfWork<TContext>` em
+`BuildingBlocks.Persistence` implementa `IOutboxMessageStaging` (eventos enfileirados no
+`PublishAsync`, publicados no `SaveChangesAsync`) e, dentro de um único
+`CreateExecutionStrategy().ExecuteAsync`, abre a transação Npgsql, chama `UseOutbox`, executa
+`IBus.Publish` dos eventos staged, `SaveChangesAsync`, `CompleteAsync` na scope Rebus e
+`CommitAsync` — ordem verificada no pacote 9.1.1. Esse staging existe porque
+`EnableRetryOnFailure` exige que a transação explícita inteira viva dentro de uma invocação da
+estratégia; o caso de uso continua `PublishAsync` → `SaveChangesAsync` sem glue Rebus.
+`IOutboxTransaction`/`IOutboxMessageStaging` são ports em Application; Messaging registra
+`NoOpOutboxTransaction` via `TryAddScoped` para hosts sem persistência (B1); a Infrastructure
+substitui pelo `EfUnitOfWork` real com `IBus` injetado.
+
+Prova de prontidão: `OutboxTransactionalTests` (Postgres + RabbitMQ reais) — commit persiste linha
+probe + handler recebe evento (`test.messaging-outbox-probe`); `SaveChangesAsync` que falha depois
+de `UseOutbox`/`Publish` (CHECK constraint na tabela probe) faz rollback da transação Npgsql — zero
+linhas em `inventory.outbox`, zero linha probe, handler não recebe. Dispose sem `SaveChangesAsync`
+também não publica (eventos só staged em memória).
+`OutboxSchemaTests` confirma `inventory.outbox` e que `svc_catalog` não lê o schema alheio.
+`ConnectionBudgetTests` e demais testes B1 seguem verdes (outbox opt-in; forwarder usa PostgreSQL, não
+terceira conexão AMQP). `TracingOutgoingStep` permanece — forwarder sem activity ambiente continua
+coberto. Deliberadamente fora: B3–B7 (inbox, contratos de negócio, `foundation.ping`, saga/timeout,
+expurgo).
 
 ### Fase C — Storage
 

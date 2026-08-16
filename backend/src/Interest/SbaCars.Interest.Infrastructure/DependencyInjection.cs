@@ -32,7 +32,7 @@ public static class DependencyInjection
             options.UseSbaCarsNpgsql(persistence.ConnectionString, InterestDbContext.Schema);
         });
 
-        services.AddScoped<IUnitOfWork, EfUnitOfWork<InterestDbContext>>();
+        services.AddEfUnitOfWork<InterestDbContext>();
         services.AddSbaCarsSensitiveDataAuditFlusher<InterestDbContext>();
 
         // A8 (§8): Npgsql's own tracing, composed onto whatever tracer provider
