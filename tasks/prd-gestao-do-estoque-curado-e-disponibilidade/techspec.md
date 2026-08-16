@@ -7,8 +7,8 @@
 > **Domain Doc:** `domains/estoque-curado/domain.md`
 > **Plano de fundação:** `docs/architecture/backend-foundation.md`
 > **Data:** 2026-08-16
-> **Status:** Em Revisão
-> **Handoff:** draft — não gerar Tasks
+> **Status:** Aprovado
+> **Handoff:** approved — pode alimentar o Task Creator
 
 ---
 
@@ -34,9 +34,9 @@ se ganha é que nenhuma oferta fica elegível com critério quebrado, e nenhuma 
 alguém ter confirmado. O que se abre mão é entregar o RF-05 e o RF-06 ponta a ponta antes de uma
 dependência de fundação que não é nossa.
 
-O fatiamento foi montado para que esse bloqueio doa o mínimo: **as sete primeiras fatias entregam
-comportamento demonstrável sem publicar nenhum evento**, incluindo a fila de validação inteira e a
-transição de uma oferta para elegível.
+O fatiamento foi montado para que esse bloqueio doa o mínimo: **as oito primeiras fatias entregam
+comportamento demonstrável sem publicar nenhum evento**, incluindo a fila de validação inteira, a
+transição de uma oferta para elegível e a máquina de disponibilidade.
 
 ---
 
@@ -134,7 +134,7 @@ flowchart TB
 | **V-02** | Operador abre o detalhe e vê quantos critérios mínimos faltam, e quais | RF-06, CM-1…CM-6 | `GET /ofertas/{id}` → carrega agregado, `AvaliarCriteriosMinimos()` → `200` com checklist e `podeSolicitarElegibilidade` | `AvaliarCriteriosMinimos`, `CodigoCriterio`, `ObterOferta*`, projeção `OfertaDetalhe` | Oferta só com placa retorna `atendidos: 1`, `total: 6` e `podeSolicitarElegibilidade: false`, com `pendencia` textual em cada critério faltante | V-01 |
 | **V-03** | Operador completa o cadastro; se a edição quebrar um critério de uma oferta elegível, ele é avisado antes de gravar | RF-01, RF-03 | `PATCH /ofertas/{id}/veiculo` → aplica em memória, avalia → `409` + `criteriosAfetados`, ou grava e suspende | `AtualizarVeiculo*`, `SuspensaoNaoConfirmadaException`, `ProblemaSuspensao`, `ExcluirOferta*`, registro no `ExceptionProblemDetailsMap` | Limpar a cidade de uma oferta elegível com `confirmaSuspensao:false` retorna 409 com `["localizacao"]` e **nada é gravado**; repetir com `true` grava e a situação vira `suspensa` | V-02 |
 | **V-04** | Operador registra origem, condição e histórico, declarando limitação onde não há dado | RF-03, RN-03, RN-09 | `PUT /ofertas/{id}/fatos` → valida limitação obrigatória, recalcula CM-6 → `200` | `FatosConhecidos`, `BlocoFato`, `SubstituirFatos*`, `FatosValidator` | Bloco com `indisponivel:true` e sem `limitacaoDeclarada` retorna 422; com limitação, CM-6 passa a atendido; bloco vazio e sem limitação mantém CM-6 não atendido | V-03 |
-| **V-05** | Oferta passa a ter preço oficial vigente, com data e responsável | RF-04, RN-06 | ver **QT-01** — o caminho depende da decisão | `PrecoOficial`, `DefinirPreco*` | `GET /ofertas/{id}` devolve `precoOficial` com `definidoPor`; CM-4 passa a atendido | V-02, **QT-01** |
+| **V-05** | Oferta ganha seu primeiro preço oficial direto, e alterações posteriores passam a exigir validação | RF-04, RN-06 | `PUT /ofertas/{id}/preco` → recusa se já há vigente → `200` com `precoOficial` preenchido | `PrecoOficial`, `DefinirPrecoInicial*`, `PrecoJaDefinidoException` | `PUT` numa oferta sem preço define e CM-4 passa a atendido; o mesmo `PUT` na sequência retorna 409; `GET /ofertas/{id}` traz `definidoPor` com nome e instante | V-02 |
 | **V-06** | Operador abre uma solicitação e o Responsável a vê na fila, com o indicador de SLA | RF-02, RF-04, RF-06, DUX-07 | `POST /ofertas/{id}/solicitacoes` → valida pré-condições do tipo, grava `pendente` → aparece em `GET /solicitacoes` e na contagem | `Solicitacao`, `TipoSolicitacao`, `StatusSolicitacao`, `AbrirSolicitacao*`, `ListarFilaValidacao*`, `ContarPendentes*`, migration `Solicitacao` + índice único parcial, `SolicitacoesController` | Solicitar elegibilidade sem os 6 critérios retorna 422; duas solicitações do mesmo tipo retornam 409; solicitação com 25h aparece com `foraDoSla:true`; `/pendentes/contagem` bate com o total da fila | V-05, EN-02 |
 | **V-07** | Responsável aprova e a oferta fica elegível; rejeita e o motivo volta ao operador | RF-02, RF-04, RF-06, RN-05, RN-07, DUX-08 | `POST /solicitacoes/{id}/aprovar` → reavalia critérios, aplica no agregado, registra decisão → `200` | `Solicitacao.Aprovar/Rejeitar`, `AprovarSolicitacao*`, `RejeitarSolicitacao*`, `ObterSolicitacao*`, `AutoAprovacaoException` | Aprovar a própria solicitação retorna 403 mesmo com `estoque:validar`; aprovar elegibilidade muda a situação para `elegivel`; aprovar retirada **não altera** a disponibilidade; rejeitar sem justificativa retorna 400 e o estado vigente não muda | V-06 |
 | **V-08** | Operação reserva, libera e vende um veículo, e a reversão de venda exige validação | RF-05, RN-04, RN-05, RN-08, DP-04, QA-02 | `POST /ofertas/{id}/disponibilidade` → valida transição contra a máquina de estados → `200` com `transicoesPermitidas` atualizadas | `Disponibilidade`, `EstadoDisponibilidade`, `AlterarDisponibilidade*`, `TransicaoInvalidaException` | `vendido → disponivel` direto retorna 422; a mesma transição via solicitação `reversao-venda` aprovada funciona; `reservado` não muda sozinho com o tempo; retirar a oferta não altera o estado | V-07 |
@@ -368,7 +368,7 @@ entrada, `Validator`.
 | `.../Ofertas/AtualizarVeiculo/` | V-03 | Command | `dotnet-architecture` | Patch parcial + protocolo de suspensão |
 | `.../Ofertas/ExcluirOferta/` | V-03 | Command | `dotnet-architecture` | Só em preparação |
 | `.../Ofertas/SubstituirFatos/` | V-04 | Command | `dotnet-architecture` | Três blocos de uma vez |
-| `.../Ofertas/DefinirPreco/` | V-05 | Command | `dotnet-architecture` | Ver QT-01 |
+| `.../Ofertas/DefinirPrecoInicial/` | V-05 | Command | `dotnet-architecture` | Primeira definição, direta; 409 se já houver vigente |
 | `.../Ofertas/AlterarDisponibilidade/` | V-08 | Command | `dotnet-architecture` | Transições diretas |
 | `.../Solicitacoes/AbrirSolicitacao/` | V-06 | Command | `dotnet-architecture` | Discriminado por tipo |
 | `.../Solicitacoes/ListarFilaValidacao/` | V-06 | Query | `dotnet-performance` | Fila com `foraDoSla` calculado |
@@ -432,7 +432,7 @@ entrada, `Validator`.
 | `backend/src/Inventory/SbaCars.Inventory.Application/SbaCars.Inventory.Application.csproj` | V-01 | `dotnet-dependency-config` | Referência a `BuildingBlocks.Application` e FluentValidation |
 | `backend/src/Inventory/SbaCars.Inventory.Api/Controllers/ProbeController.cs` | V-01 | `dotnet-code-quality` | **Remover** — o próprio arquivo diz "remove once inventory-service has a real protected endpoint" |
 | `apps/backoffice/src/features/auth/config/oidcConfig.ts` | EN-02 | `react-runtime-config` | Incluir `estoque:validar` em `API_SCOPES` (AJ-07) |
-| `tasks/.../api-contract.yaml` | V-05 | — | Só se QT-01 exigir um endpoint de definição inicial de preço |
+| `tasks/.../api-contract.yaml` | V-05 | — | **Já alterado**: `PUT /ofertas/{id}/preco` adicionado ao resolver a QT-01 |
 
 ### Arquivos de Referência (não alterar)
 
@@ -536,7 +536,7 @@ O gate determinístico (`scripts/ai-flow/gate.sh`) roda build, format e a suíte
 3. **V-02 — Detalhe e checklist** — depende de 2. Evidência: checklist mostra o que falta.
 4. **V-03 — Editar + suspensão** — depende de 3. Evidência: 409 com `criteriosAfetados`, nada gravado.
 5. **V-04 — Fatos conhecidos** — depende de 4. Evidência: CM-6 alterna conforme limitação declarada.
-6. **QT-01 resolvida** → **V-05 — Preço oficial** — depende de 3. Evidência: CM-4 atendido.
+6. **V-05 — Preço oficial inicial** — depende de 3. Evidência: `PUT` define e CM-4 passa a atendido; o segundo `PUT` retorna 409.
 7. **EN-02 — Permissões novas** — sem dependências de código; precisa do Logto configurado.
 8. **V-06 — Solicitação e fila** — depende de 5, 6 e 7. Evidência: fila com SLA e badge corretos.
 9. **V-07 — Decisão** — depende de 8. Evidência: oferta vira elegível; auto-aprovação em 403.
@@ -555,7 +555,6 @@ aparece só no passo 11, com dez comportamentos já entregues.
 | **Fase B2** — outbox `Rebus.PostgreSql` + `IUnitOfWork` transacional | V-09, V-10 | ⬜ pendente |
 | **Fase C1–C3** — `BuildingBlocks.Storage`, buckets, CORS | V-11 | ⬜ pendente |
 | **Logto** — scopes `estoque:validar` e `estoque:integrar` | V-06, V-10 | ⬜ a configurar |
-| **QT-01** — decisão sobre a definição inicial do preço | V-05 e tudo depois | ⬜ **aguardando decisão** |
 
 Fase B3 (inbox) **não** bloqueia: o D02 não consome nenhum evento na Fase 1, conforme o §7 do
 domain doc.
@@ -646,18 +645,18 @@ Documentadas em ADRs, resumidas aqui:
 
 ## Questões em Aberto
 
-- [ ] **QT-01 — Conflito com o API Contract: como a oferta ganha o primeiro preço oficial?**
-  O contrato só permite alterar preço por `POST /ofertas/{id}/solicitacoes` com `tipo: preco`.
-  Mas o RF-04 bloqueia a solicitação de elegibilidade sem preço — logo, toda oferta precisaria
-  passar **duas vezes** pela fila do Responsável antes de ser publicada: uma para o preço, outra
-  para a elegibilidade. Isso dobra a carga sobre o papel que tem meta de SLA no PRD.
-  Os critérios do RF-04 falam em "alteração de preço pendente" e "o preço vigente permanecerá
-  válido", o que pressupõe um preço vigente já existente.
-  **Proposta:** a **primeira definição** é direta (`PUT /ofertas/{id}/preco`, permissão
-  `estoque:gerenciar`, só quando não há preço vigente); **alterações** continuam exigindo
-  validação. Não há valor vigente a proteger quando ainda não existe nenhum.
-  **Impacto se aceita:** um endpoint a mais no contrato e um `PrecoOficial` inicial em V-05.
-  **Bloqueia V-05 e tudo depois dele.**
+- [x] **QT-01 — RESOLVIDA em 16/08/2026: a primeira definição de preço é direta.**
+  O contrato ganhou `PUT /ofertas/{ofertaId}/preco` (`definirPrecoInicial`, permissão
+  `estoque:gerenciar`), aceito somente enquanto não há preço vigente; havendo, retorna 409 e a
+  alteração passa a exigir solicitação.
+  **Racional:** a validação existe para proteger um valor vigente de ser trocado sem revisão.
+  Sem valor vigente não há o que proteger, e exigir validação obrigaria toda oferta a passar
+  duas vezes pela fila antes de ser publicada — dobrando a carga sobre o único papel com meta
+  de SLA no PRD.
+  **Consequência de tela:** o card de preço da T03 tem **dois estados** — "Definir preço"
+  (direto) quando `precoOficial` é `null`, e "Solicitar alteração" (fila) quando há valor. O
+  `ux-spec.md` ganhou o modal M05-b. **O HTML `t03-detalhe-oferta.html` já gerado só cobre o
+  segundo estado** — ver AJ-09.
 - [ ] **QT-02** — `estoque:validar` deve ser concedida ao papel `operacao` existente ou a um papel
   novo `validacao` no Logto? O §5.4 do plano de fundação mapeia papel → permissão; a resposta
   define se o DUX-03 do UX spec (papéis acumuláveis) é configurável ou fixo.
@@ -670,19 +669,18 @@ Documentadas em ADRs, resumidas aqui:
 
 ## Architecture Decision Records
 
-> Durante a revisão os links apontam para `.draft.md`; após a aprovação o sufixo é removido.
+Todas com status `Accepted` em 2026-08-16.
 
-- [ADR-001: CQRS nativo, sem MediatR, como padrão de caso de uso do D02](adrs/adr-001.draft.md) — escolhido pelos dois sinais da skill que o D02 aciona; define o precedente dos outros três serviços
-- [ADR-002: Oferta e Solicitacao como agregados separados](adrs/adr-002.draft.md) — suspensão atômica dentro de Oferta, fila como projeção cross-oferta
-- [ADR-003: Suspensão de elegibilidade confirmada em duas fases](adrs/adr-003.draft.md) — 409 com `criteriosAfetados` antes de gravar, para nenhuma oferta sair do catálogo em silêncio
-- [ADR-004: Eventos de integração do D02 só depois do outbox (B2)](adrs/adr-004.draft.md) — evento perdido é falha silenciosa; B4 entra no escopo do D02
+- [ADR-001: CQRS nativo, sem MediatR, como padrão de caso de uso do D02](adrs/adr-001.md) — escolhido pelos dois sinais da skill que o D02 aciona; define o precedente dos outros três serviços
+- [ADR-002: Oferta e Solicitacao como agregados separados](adrs/adr-002.md) — suspensão atômica dentro de Oferta, fila como projeção cross-oferta
+- [ADR-003: Suspensão de elegibilidade confirmada em duas fases](adrs/adr-003.md) — 409 com `criteriosAfetados` antes de gravar, para nenhuma oferta sair do catálogo em silêncio
+- [ADR-004: Eventos de integração do D02 só depois do outbox (B2)](adrs/adr-004.md) — evento perdido é falha silenciosa; B4 entra no escopo do D02
 
 ---
 
 ## Próximos Passos
 
-1. **Resolver QT-01** — bloqueia V-05 e todo o resto do roadmap.
-2. **Aprovar esta TechSpec** — ela promove para `techspec.md` e as ADRs para `Accepted`.
-3. **Frontend:** os 10 HTMLs do Stitch já estão em `tasks/.../screens/`; use
+1. **Tasks:** `tsg-flow-task-creator` referenciando esta TechSpec, agora aprovada.
+2. **Frontend:** os 10 HTMLs do Stitch já estão em `tasks/.../screens/`; use
    `tsg-flow-frontend-techspec-creator` com o `api-contract.yaml`, o `ux-spec.md` e esses arquivos.
 4. **Tasks:** `tsg-flow-task-creator` referenciando esta TechSpec, depois de aprovada.

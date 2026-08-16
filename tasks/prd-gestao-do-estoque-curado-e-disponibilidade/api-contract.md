@@ -50,6 +50,7 @@ Os paths deste documento são **relativos ao gateway**, que é o que o frontend 
 | `GET` | `/ofertas/{ofertaId}` | Detalhe consolidado da oferta | `estoque:ler` | 200, 401, 403, 404, 500 |
 | `DELETE` | `/ofertas/{ofertaId}` | Excluir oferta em preparação | `estoque:gerenciar` | 204, 401, 403, 404, 422, 500 |
 | `PATCH` | `/ofertas/{ofertaId}/veiculo` | Atualizar dados do veículo | `estoque:gerenciar` | 200, 400, 401, 403, 404, 409, 422, 500 |
+| `PUT` | `/ofertas/{ofertaId}/preco` | Definir o **primeiro** preço, direto | `estoque:gerenciar` | 200, 400, 401, 403, 404, 409, 422, 500 |
 | `PUT` | `/ofertas/{ofertaId}/fatos` | Substituir os três blocos de fatos | `estoque:gerenciar` | 200, 400, 401, 403, 404, 409, 422, 500 |
 | `POST` | `/ofertas/{ofertaId}/evidencias/upload-url` | Gerar URL S3 de upload | `estoque:gerenciar` | 201, 400, 401, 403, 404, 413, 415, 500 |
 | `GET` | `/evidencias/{evidenciaId}/download-url` | Gerar URL S3 de leitura | `estoque:ler` | 200, 401, 403, 404, 500 |
@@ -62,7 +63,23 @@ Os paths deste documento são **relativos ao gateway**, que é o que o frontend 
 | `POST` | `/solicitacoes/{solicitacaoId}/rejeitar` | Rejeitar com justificativa | `estoque:validar` | 200, 400, 401, 403, 404, 409, 422, 500 |
 | `GET` | `/ofertas-elegiveis` | Fornecer ofertas elegíveis a D01 | `estoque:integrar` (serviço) | 200, 400, 401, 403, 500 |
 
-**16 endpoints.** Cobertura de RF-01 a RF-06 na seção "Rastreabilidade".
+**17 endpoints.** Cobertura de RF-01 a RF-06 na seção "Rastreabilidade".
+
+### O ciclo de vida do preço oficial
+
+Duas portas diferentes, e a diferença é deliberada:
+
+| Situação | Caminho | Validação? |
+|---|---|---|
+| Oferta ainda **sem** preço vigente | `PUT /ofertas/{id}/preco` | Não |
+| Oferta **com** preço vigente | `POST /ofertas/{id}/solicitacoes` com `tipo: preco` | Sim |
+
+A validação do Responsável existe para proteger um valor vigente de ser trocado sem revisão.
+Quando ainda não há valor vigente, não há o que proteger — e exigir validação aqui obrigaria
+**toda** oferta a passar duas vezes pela fila antes de ser publicada, uma para o preço e outra
+para a elegibilidade, dobrando a carga sobre o único papel com meta de SLA no PRD.
+
+Tentar `PUT` numa oferta que já tem preço retorna 409.
 
 ---
 

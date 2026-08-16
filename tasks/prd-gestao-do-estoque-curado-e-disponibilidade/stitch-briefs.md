@@ -471,6 +471,47 @@ botão fantasma "Cancelar" e botão primário LARANJA "Enviar para validação".
 
 ---
 
+## 8b. M05-b — Modal: definir preço inicial
+
+**Arquivo** `m05b-modal-preco-inicial.html` — variante curta do M05, para quando a oferta
+ainda não tem preço vigente. Adicionado depois da decisão QT-01 da TechSpec.
+
+▸ **PROMPT**
+
+```
+Modal centrado sobre a tela de detalhe da oferta, fundo escurecido em navy #191925
+a 50%. Largura 520px, card branco, raio 8px, sombra ambiente suave.
+
+É a variante CURTA do modal de preço: esta oferta ainda NÃO tem preço vigente, então
+não há valor anterior para comparar nem justificativa a pedir.
+
+CABEÇALHO
+Título "Definir preço oficial" em 24px/600.
+Subtítulo 14px #4A4A4A: "Honda Civic EXL 2.0 · ABC1D23".
+
+CORPO
+Um único campo, com respiro generoso acima e abaixo:
+  Rótulo CAIXA ALTA 12px/700 #78767c: "PREÇO OFICIAL"
+  Input com prefixo "R$", VAZIO, placeholder "0,00", fonte 24px tabular,
+  borda #CDCDDB, raio 4px, altura 56px.
+
+NÃO INCLUIR: bloco de "preço vigente", linha de variação percentual, nem campo de
+justificativa. Eles pertencem ao outro modal.
+
+NOTA (faixa #f3f3fb, borda esquerda 3px #2E2E3A, ícone ⓘ, 12px)
+"Este é o primeiro preço desta oferta e passa a valer imediatamente. Alterações
+futuras exigirão validação."
+
+RODAPÉ, alinhado à direita:
+botão fantasma "Cancelar" e botão primário LARANJA "Definir preço".
+```
+
+**Consequência na T03:** o card de preço tem dois estados. Quando não há preço vigente,
+mostre `Preço oficial ainda não definido` em 14px #78767c no lugar do valor, e o botão
+secundário passa a ser **Definir preço**. Vale regenerar a T03 com essa variante.
+
+---
+
 ## 9. M06 — Modal: alterar disponibilidade
 
 **Arquivo** `m06-modal-disponibilidade.html`

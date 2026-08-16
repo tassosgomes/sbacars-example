@@ -349,6 +349,73 @@ paths:
         Publica `estoque.oferta-atualizada`. A avaliação dos critérios deve rodar na mesma
         transação da escrita, para que suspensão e alteração sejam atômicas.
 
+  # ─── Preço oficial ────────────────────────────────────────────────────────
+  /ofertas/{ofertaId}/preco:
+    parameters:
+      - $ref: '#/components/parameters/OfertaId'
+    put:
+      summary: Definir preço oficial inicial
+      description: |
+        Define o **primeiro** preço oficial da oferta, direto, sem passar pela fila de
+        validação. Aceito somente enquanto não existe preço vigente.
+
+        A validação do Responsável existe para proteger um valor vigente de ser trocado sem
+        revisão (RF-04). Quando ainda não há valor vigente, não há o que proteger — e exigir
+        validação aqui obrigaria toda oferta a passar duas vezes pela fila antes de ser
+        publicada, uma para o preço e outra para a elegibilidade, dobrando a carga sobre o
+        papel que tem meta de SLA.
+
+        Havendo preço vigente, esta operação retorna 409: a alteração passa a ser
+        `POST /ofertas/{ofertaId}/solicitacoes` com `tipo: preco`.
+      operationId: definirPrecoInicial
+      tags: [Ofertas]
+      security:
+        - BearerAuth: [estoque:gerenciar]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DefinirPrecoInicialInput'
+            examples:
+              primeiroPreco:
+                summary: Primeira definição de preço
+                value:
+                  valorCentavos: 8790000
+      responses:
+        '200':
+          description: Preço oficial definido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OfertaDetalhe'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '403':
+          $ref: '#/components/responses/SemPermissao'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '409':
+          description: |
+            Já existe preço vigente. Use uma solicitação de alteração de preço.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+        '422':
+          $ref: '#/components/responses/RegraDeNegocioViolada'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        No card de preço da tela de detalhe, quando `precoOficial` é `null`, o botão é
+        **Definir preço** e chama este endpoint; quando há valor, o botão é **Solicitar
+        alteração** e abre o modal da fila. São dois estados do mesmo card, não duas telas.
+      x-backend-notes: |
+        Não publica evento: uma oferta ainda em preparação não é fornecida a D01. O preço
+        entra em `estoque.oferta-incluida` quando a elegibilidade é aprovada.
+
   # ─── Fatos conhecidos ─────────────────────────────────────────────────────
   /ofertas/{ofertaId}/fatos:
     parameters:
@@ -1941,6 +2008,17 @@ components:
           type: string
           minLength: 1
           maxLength: 1000
+
+    DefinirPrecoInicialInput:
+      type: object
+      required: [valorCentavos]
+      properties:
+        valorCentavos:
+          type: integer
+          minimum: 1
+          description: Preço oficial em centavos de BRL. `8790000` equivale a R$ 87.900,00.
+          examples:
+            - 8790000
 
     AprovarSolicitacaoInput:
       type: object

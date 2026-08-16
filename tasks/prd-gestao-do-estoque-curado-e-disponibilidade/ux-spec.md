@@ -244,9 +244,12 @@ Layout de duas colunas.
 
 **Coluna lateral (~35%)**
 
-4. **Card Preço oficial** — valor vigente grande (`R$ 87.900,00`), abaixo em texto pequeno
-   `Atualizado em 12/08/2026 por Ana Souza` (DUX-06). Botão **Solicitar alteração** → M05.
-   Havendo pendência de preço, tarja: `Alteração para R$ 84.500,00 aguardando validação`
+4. **Card Preço oficial** — **dois estados**, não duas telas:
+   - **Sem preço vigente** (oferta nova): sem valor, texto `Preço oficial ainda não definido`
+     e botão **Definir preço** → M05-b. É ação **direta**, não vai para a fila.
+   - **Com preço vigente**: valor grande (`R$ 87.900,00`), abaixo em texto pequeno
+     `Atualizado em 12/08/2026 por Ana Souza` (DUX-06). Botão **Solicitar alteração** → M05.
+     Havendo pendência de preço, tarja: `Alteração para R$ 84.500,00 aguardando validação`
 5. **Card Disponibilidade** — estado atual + as transições válidas a partir dele como
    botões (§3.2). Em `vendido`, o único botão é **Solicitar reversão** → M06
 6. **Card Critérios de elegibilidade** — checklist CM-1..CM-6 com ✓/✗, contador
@@ -313,6 +316,23 @@ arquivo recusado por tipo ou tamanho
 
 **Estados**: normal · valor inválido · já existe pendência de preço (modal abre em modo
 informativo, sem formulário)
+
+---
+
+### M05-b — Definir preço inicial *(modal sobre T03)*
+
+**Papel** `operador` · **RF** 04 · **Só quando não existe preço vigente**
+
+Variante do M05, mais curta, porque não há valor vigente a comparar nem fila a alimentar:
+
+- **Preço oficial** — input monetário BRL. Único campo obrigatório
+- **Sem** bloco de preço vigente, **sem** linha de variação, **sem** justificativa
+- Nota: `Este é o primeiro preço desta oferta e passa a valer imediatamente. Alterações
+  futuras exigirão validação.`
+- Ações: Cancelar · Definir preço
+
+A justificativa não é pedida aqui porque não há decisão de terceiro a informar — ninguém vai
+revisar. Exigi-la seria cerimônia sem leitor.
 
 ---
 
@@ -478,6 +498,7 @@ Nada de `apps/` foi alterado neste planejamento. Estes itens viram tasks na etap
 | AJ-06 | Criar os componentes compartilhados do §6 | `packages/ui`, `apps/backoffice/src/shared/components` | §6 |
 | AJ-07 | Adicionar `estoque:validar` a `API_SCOPES` — a lista atual tem 4 scopes e não inclui o do Responsável de validação | `apps/backoffice/src/features/auth/config/oidcConfig.ts` | QC-01 do `api-contract.md` |
 | AJ-08 | Esconder o item `Validação` da sidebar para quem não tem `estoque:validar` | `apps/backoffice/src/app/layouts/BackofficeLayout.tsx` | DUX-02 |
+| AJ-09 | **Card de preço da T03 precisa do estado "sem preço vigente"** — o HTML gerado só cobre o estado com valor e o botão `Solicitar alteração`. Falta o estado com `Definir preço` e o modal M05-b | `tasks/.../screens/t03-detalhe-oferta.html`, `m05-modal-preco.html` | QT-01 da `techspec.md` |
 
 **AJ-04 é o mais relevante e o mais silencioso.** Enquanto ele não for feito, o HTML que
 sair do Stitch e o código do backoffice usam paletas diferentes — o Stitch em Deep Navy
