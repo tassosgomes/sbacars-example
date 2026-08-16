@@ -1,3 +1,4 @@
+using Rebus.Config;
 using SbaCars.BuildingBlocks.Messaging;
 using SbaCars.BuildingBlocks.Messaging.HealthChecks;
 using SbaCars.BuildingBlocks.Observability;
@@ -8,6 +9,7 @@ using SbaCars.BuildingBlocks.Web.CorrelationId;
 using SbaCars.BuildingBlocks.Web.ErrorHandling;
 using SbaCars.BuildingBlocks.Web.OpenApi;
 using SbaCars.BuildingBlocks.Web.Runtime;
+using SbaCars.Catalog.Api.Messaging.Foundation;
 using SbaCars.Catalog.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,6 +21,10 @@ builder.Services.AddSbaCarsAuth(builder.Configuration, builder.Environment);
 builder.Services.AddCatalogInfrastructure(builder.Configuration);
 builder.Services.AddSbaCarsObservability(builder.Configuration, "catalog-service");
 builder.Services.AddSbaCarsMessaging(builder.Configuration, "catalog-service", CatalogDbContext.Schema);
+// B5 scaffolding (§6.5) — delete with FoundationPingHandler when the first real catalog consumer exists.
+builder.Services.AddSingleton<FoundationPingReceipt>();
+builder.Services.AddRebusHandler<FoundationPingHandler>();
+builder.Services.AddHostedService<FoundationPingSubscriptionHostedService>();
 builder.Services.AddSbaCarsForwardedHeaders();
 builder.Services.AddSbaCarsRuntimeReadiness(builder.Configuration);
 builder.Services.AddSbaCarsHealthChecks()

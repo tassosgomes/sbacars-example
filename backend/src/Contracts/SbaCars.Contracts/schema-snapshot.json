@@ -206,6 +206,22 @@
     ]
   },
   {
+    "wireName": "foundation.ping",
+    "clrFullName": "SbaCars.Contracts.Foundation.V1.FoundationPingIntegrationEvent",
+    "properties": [
+      {
+        "name": "OcorridoEm",
+        "type": "System.DateTimeOffset",
+        "isNullable": false
+      },
+      {
+        "name": "PingId",
+        "type": "System.Guid",
+        "isNullable": false
+      }
+    ]
+  },
+  {
     "wireName": "interesse.manifestado",
     "clrFullName": "SbaCars.Contracts.Interesse.V1.InteresseManifestadoIntegrationEvent",
     "properties": [

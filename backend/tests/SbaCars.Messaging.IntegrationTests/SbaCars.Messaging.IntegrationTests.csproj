@@ -23,6 +23,8 @@
     <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Messaging\SbaCars.BuildingBlocks.Messaging.csproj" />
     <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Persistence\SbaCars.BuildingBlocks.Persistence.csproj" />
     <ProjectReference Include="..\..\src\Inventory\SbaCars.Inventory.Infrastructure\SbaCars.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Catalog\SbaCars.Catalog.Infrastructure\SbaCars.Catalog.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Catalog\SbaCars.Catalog.Api\SbaCars.Catalog.Api.csproj" />
     <ProjectReference Include="..\SbaCars.TestKit\SbaCars.TestKit.csproj" />
   </ItemGroup>
 
