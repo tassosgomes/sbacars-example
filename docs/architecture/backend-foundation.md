@@ -1272,7 +1272,7 @@ inbox/idempotência, `SbaCars.Contracts`, saga e timeout persistidos.
 | B2 | Outbox do `Rebus.PostgreSql` por serviço + `IUnitOfWork` que enlista a transação do EF | Rollback de transação não publica evento — provado por teste | ✅ concluída |
 | B3 | Inbox/idempotência própria (step de pipeline + tabela `inbox_message`) | Reentrega do mesmo `message_id` não duplica efeito — provado por teste | ✅ concluída |
 | B4 | `SbaCars.Contracts` com os eventos dos Domain Docs + snapshot de schema | Mudança breaking em contrato quebra o build | ✅ concluída |
-| B5 | Prova `foundation.ping` inventory → catalog | Teste de integração cobre outbox → broker → inbox, com trace correlacionado | ⬜ pendente |
+| B5 | Prova `foundation.ping` inventory → catalog | Teste de integração cobre outbox → broker → inbox, com trace correlacionado | ✅ concluída |
 | B6 | Saga e timeout persistidos no PostgreSQL habilitados e provados (capacidade exigida pela reserva de D04, §2.5) | Saga sobrevive a restart do processo e um timeout dispara depois de reinício — provado por teste | ⬜ pendente |
 | B7 | Job de expurgo de outbox/inbox (7 dias) com advisory lock | Com duas réplicas, o expurgo executa uma vez só — provado por teste | ⬜ pendente |
 
@@ -1426,6 +1426,32 @@ Payloads intencionalmente magros: identidade `Guid` do agregado de origem +
 incluem `ItemDoCatalogoId` como referência cruzada documentada. Deliberadamente fora: B5–B7
 (`foundation.ping`, saga/timeout, expurgo de 7 dias) e os demais eventos D04 deixados para
 Fase 2.
+
+**Estado em 2026-08-16 (B5):** prova `foundation.ping` inventory → catalog entregue e
+verificada. O evento técnico `FoundationPingIntegrationEvent` em
+`SbaCars.Contracts.Foundation.V1` é o único wire name além dos quinze Domain Docs — o gate
+`FoundationCatalog_ContainsExactlyTheFifteenDocumentedWireNamesPlusFoundationPing` fecha o
+catálogo em 16 nomes, e `schema-snapshot.json` foi atualizado de forma aditiva.
+
+Inventory publica via `IFoundationPingProbeService` em Application (`PublishAsync` +
+`SaveChangesAsync`, outbox B2) — sem Rebus em Application/Domain. O probe
+`POST api/_probe/foundation-ping` em `Inventory.Api` (mesma política `EstoqueLer` que
+`whoami`) dispara o publish para scaffolding local; catalog consome em
+`FoundationPingHandler` registrado em `Catalog.Api/Program.cs` com
+`AddRebusHandler` + `FoundationPingSubscriptionHostedService` (subscribe no boot, sem
+`.Result`). `FoundationPingReceipt` singleton observa efeito do handler; inbox prova
+durabilidade. Catalog não referencia Inventory; Inventory não referencia Catalog — tipo
+compartilhado só em Contracts.
+
+Prova de prontidão: `FoundationPingIntegrationTests` (Postgres + RabbitMQ reais, dois
+`MessagingTestHost`s) — inventory `"inventory-service"` / schema `inventory` publica
+pelo publisher+UoW; catalog `"catalog-service"` / schema `catalog` com fila de input
+distinta usa o mesmo `FoundationPingHandler` da API; handler roda uma vez; linha em
+`catalog.inbox_message` para `(message_id, catalog-service)`; reentrega com o mesmo
+`rbs2-msg-id` não duplica efeito; `traceparent` capturado no consumidor contém o
+`TraceId`/`SpanId` do span `foundation.ping publish` do exporter in-memory do inventory.
+Deliberadamente fora: B6–B7 (saga/timeout, expurgo de 7 dias) e publicadores de negócio
+dos Domain Docs.
 
 ### Fase C — Storage
 

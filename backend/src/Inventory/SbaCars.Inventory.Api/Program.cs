@@ -8,6 +8,7 @@ using SbaCars.BuildingBlocks.Web.CorrelationId;
 using SbaCars.BuildingBlocks.Web.ErrorHandling;
 using SbaCars.BuildingBlocks.Web.OpenApi;
 using SbaCars.BuildingBlocks.Web.Runtime;
+using SbaCars.Inventory.Application.Foundation;
 using SbaCars.Inventory.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -17,6 +18,7 @@ builder.Services.AddSbaCarsProblemDetails();
 builder.Services.AddSbaCarsOpenApi();
 builder.Services.AddSbaCarsAuth(builder.Configuration, builder.Environment);
 builder.Services.AddInventoryInfrastructure(builder.Configuration);
+builder.Services.AddScoped<IFoundationPingProbeService, FoundationPingProbeService>();
 builder.Services.AddSbaCarsObservability(builder.Configuration, "inventory-service");
 builder.Services.AddSbaCarsMessaging(builder.Configuration, "inventory-service", InventoryDbContext.Schema);
 builder.Services.AddSbaCarsForwardedHeaders();

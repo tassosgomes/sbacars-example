@@ -10,7 +10,7 @@ namespace SbaCars.Architecture.Tests;
 /// </summary>
 public sealed class IntegrationEventContractTests
 {
-    private static readonly string[] ExpectedWireNames =
+    private static readonly string[] ExpectedDomainDocWireNames =
     [
         "atendimento.atualizado",
         "atendimento.iniciado",
@@ -29,6 +29,28 @@ public sealed class IntegrationEventContractTests
         "testdrive.solicitado"
     ];
 
+    private const string FoundationPingWireName = "foundation.ping";
+
+    private static readonly string[] ExpectedWireNames =
+    [
+        "atendimento.atualizado",
+        "atendimento.iniciado",
+        "catalogo.interesse-solicitado",
+        "catalogo.item-atualizado",
+        "catalogo.item-publicado",
+        "compra.reserva-solicitada",
+        "estoque.disponibilidade-alterada",
+        "estoque.oferta-atualizada",
+        "estoque.oferta-incluida",
+        "estoque.oferta-retirada",
+        "estoque.reserva-recusada",
+        FoundationPingWireName,
+        "interesse.manifestado",
+        "interesse.qualificado",
+        "testdrive.agendado",
+        "testdrive.solicitado"
+    ];
+
     [Fact]
     public void CurrentContracts_MatchCommittedSnapshot()
     {
@@ -40,14 +62,16 @@ public sealed class IntegrationEventContractTests
     }
 
     [Fact]
-    public void FoundationCatalog_ContainsExactlyTheFifteenDocumentedWireNames()
+    public void FoundationCatalog_ContainsExactlyTheFifteenDocumentedWireNamesPlusFoundationPing()
     {
         var wireNames = ContractSchemaSnapshot
             .CollectEventSchemas(typeof(IIntegrationEvent).Assembly)
             .Select(schema => schema.WireName)
             .ToArray();
 
+        wireNames.Should().Contain(ExpectedDomainDocWireNames, "the fifteen Domain Doc wire names must remain present (B4)");
         wireNames.Should().BeEquivalentTo(ExpectedWireNames, options => options.WithStrictOrdering());
+        wireNames.Should().HaveCount(16, "only foundation.ping may be added beyond the fifteen Domain Doc events (B5)");
     }
 
     [Fact]
