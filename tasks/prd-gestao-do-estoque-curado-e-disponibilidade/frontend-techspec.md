@@ -8,7 +8,7 @@
 > **TechSpec backend:** `techspec.md` (Aprovada)
 > **App:** `apps/backoffice`
 > **Data:** 2026-08-16
-> **Status:** Em Revisão
+> **Status:** Aprovado
 
 ---
 
@@ -715,9 +715,9 @@ Nada bloqueia o início: o passo 1 pode começar hoje contra o contrato.
 
 ### Criadas nesta sessão (frontend)
 
-- [ADR-005: TanStack Query como camada de server state](adrs/adr-005.draft.md) — invalidação cruzada é o padrão dominante do D02
-- [ADR-006: Tipos gerados com openapi-typescript, hooks à mão](adrs/adr-006.draft.md) — os três pontos fora do padrão ficam em código legível
-- [ADR-007: react-hook-form + zod](adrs/adr-007.draft.md) — a regra condicional da T04 escrita uma vez
+- [ADR-005: TanStack Query como camada de server state](adrs/adr-005.md) — invalidação cruzada é o padrão dominante do D02
+- [ADR-006: Tipos gerados com openapi-typescript, hooks à mão](adrs/adr-006.md) — os três pontos fora do padrão ficam em código legível
+- [ADR-007: react-hook-form + zod](adrs/adr-007.md) — a regra condicional da T04 escrita uma vez
 
 ---
 

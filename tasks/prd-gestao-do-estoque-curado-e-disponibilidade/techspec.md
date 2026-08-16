@@ -680,7 +680,8 @@ Todas com status `Accepted` em 2026-08-16.
 
 ## Próximos Passos
 
-1. **Tasks:** `tsg-flow-task-creator` referenciando esta TechSpec, agora aprovada.
-2. **Frontend:** os 10 HTMLs do Stitch já estão em `tasks/.../screens/`; use
-   `tsg-flow-frontend-techspec-creator` com o `api-contract.yaml`, o `ux-spec.md` e esses arquivos.
-4. **Tasks:** `tsg-flow-task-creator` referenciando esta TechSpec, depois de aprovada.
+1. **Tasks:** `tsg-flow-task-creator` referenciando esta TechSpec e a `frontend-techspec.md`,
+   ambas aprovadas.
+2. **Frontend:** `frontend-techspec.md` já está aprovada — ADR-005 a ADR-007 documentam
+   TanStack Query, geração de tipos e formulários.
+3. **Validação:** as questões QT-02, QT-03 e QT-04 seguem abertas; nenhuma bloqueia o início.
