@@ -1,39 +1,48 @@
 /**
  * Design tokens for Plataforma AutoTransparência.
- * Source: inferred minimal set — Stitch export unavailable (see .stitch/designs/README.md).
+ * Source: DESIGN.md
  */
 :root {
-  /* Brand — trust & transparency */
-  --color-primary-50: #eff6ff;
-  --color-primary-100: #dbeafe;
-  --color-primary-500: #2563eb;
-  --color-primary-600: #1d4ed8;
-  --color-primary-700: #1e40af;
+  /* Brand */
+  --color-primary-50: #ededf5;
+  --color-primary-100: #e2e2ea;
+  --color-primary-500: #2e2e3a;
+  --color-primary-600: #191925;
+  --color-primary-700: #101018;
   --color-primary-foreground: #ffffff;
 
-  --color-accent-500: #059669;
-  --color-accent-600: #047857;
+  /* Action / Accent — Action Orange */
+  --color-action-orange: #fc8422;
+  --color-action-orange-hover: #e06e12;
+  --color-accent-500: #fc8422;
+  --color-accent-600: #eb7711;
   --color-accent-foreground: #ffffff;
 
+  /* Trust Green */
+  --color-trust-green: #018444;
+  --color-trust-green-light: #e6f7ee;
+
   /* Neutrals */
-  --color-neutral-50: #f8fafc;
-  --color-neutral-100: #f1f5f9;
-  --color-neutral-200: #e2e8f0;
-  --color-neutral-300: #cbd5e1;
-  --color-neutral-400: #94a3b8;
-  --color-neutral-500: #64748b;
-  --color-neutral-600: #475569;
-  --color-neutral-700: #334155;
-  --color-neutral-800: #1e293b;
-  --color-neutral-900: #0f172a;
-  --color-neutral-foreground: #0f172a;
+  --color-neutral-50: #f9f9ff;
+  --color-neutral-100: #f3f3fb;
+  --color-neutral-200: #ededf5;
+  --color-neutral-300: #e2e2ea;
+  --color-neutral-400: #cdcddb;
+  --color-neutral-500: #9795a4;
+  --color-neutral-600: #78767c;
+  --color-neutral-700: #47464c;
+  --color-neutral-800: #2e2e3a;
+  --color-neutral-900: #191b21;
+  --color-neutral-foreground: #191b21;
 
   /* Semantic */
-  --color-background: #ffffff;
-  --color-surface: #f8fafc;
-  --color-border: #e2e8f0;
-  --color-muted: #64748b;
-  --color-danger-500: #dc2626;
+  --color-background: #f9f9ff;
+  --color-surface: #ffffff;
+  --color-surface-container: #ededf5;
+  --color-border: #cdcddb;
+  --color-muted: #78767c;
+  --color-danger-500: #ba1a1a;
+  --color-danger-600: #93000a;
   --color-danger-foreground: #ffffff;
 
   /* Typography */
@@ -67,14 +76,14 @@
   --spacing-16: 4rem;
 
   /* Radius */
-  --radius-sm: 0.25rem;
-  --radius-md: 0.375rem;
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
   --radius-lg: 0.5rem;
   --radius-xl: 0.75rem;
   --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-sm: 0 1px 2px 0 rgb(15 23 42 / 0.05);
-  --shadow-md: 0 4px 6px -1px rgb(15 23 42 / 0.1), 0 2px 4px -2px rgb(15 23 42 / 0.1);
-  --shadow-lg: 0 10px 15px -3px rgb(15 23 42 / 0.1), 0 4px 6px -4px rgb(15 23 42 / 0.1);
+  --shadow-sm: 0 1px 2px 0 rgb(46 46 58 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(46 46 58 / 0.1), 0 2px 4px -2px rgb(46 46 58 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(46 46 58 / 0.1), 0 4px 6px -4px rgb(46 46 58 / 0.1);
 }
