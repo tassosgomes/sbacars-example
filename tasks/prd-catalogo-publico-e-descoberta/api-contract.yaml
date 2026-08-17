@@ -1,0 +1,1787 @@
+openapi: 3.1.0
+
+info:
+  title: Catálogo Público e Descoberta API
+  description: |
+    API do domínio D01 — Catálogo Público e Descoberta. Cobre a listagem pública do
+    catálogo curado, busca com filtros e proximidade, detalhe transparente do veículo,
+    status e preço apresentados, favoritos e comparação por navegador, e o início da
+    manifestação de interesse encaminhada a D03.
+
+    **Contrato gerado a partir de:**
+    `tasks/prd-catalogo-publico-e-descoberta/prd.md` (RF-01 a RF-07) e
+    `tasks/prd-catalogo-publico-e-descoberta/ux-spec.md`
+    **Domain doc:** `domains/catalogo-descoberta/domain.md` (RN-01 a RN-12)
+    **Decisões de produto:** PD-001 (dado pessoal pertence a D03), PD-002 (sem identidade
+    de comprador na Fase 1)
+    **Data de geração:** 2026-08-16
+
+    ## A característica que define esta API
+
+    **Ela é inteiramente pública e anônima.** Não há `Authorization`, não há sessão, não
+    há usuário. É a consequência direta de PD-002, e é o que a separa da API de D02, onde
+    toda operação exige permissão. O único identificador que circula é o
+    `X-Navegador-Id` — um UUID gerado no cliente, que marca um navegador e não uma
+    pessoa (termo canônico "Navegador identificado", RN-07).
+
+    ## Premissas adotadas
+
+    Derivadas do código já existente em `backend/` e do contrato de D02, não inventadas
+    aqui.
+
+    - **Autenticação:** nenhuma. As rotas ficam atrás do `SbaCars.Gateway.Public`, que
+      hoje já expõe `/api/catalog/{**rest}` sem política de autorização.
+    - **Proteção de abuso:** o limitador global por IP de
+      `SbaCars.BuildingBlocks.Web.RateLimiting` cobre toda requisição. `POST /interesses`
+      opta adicionalmente pela política `sbacars-anonymous-strict`, como o comentário de
+      `RateLimitingPolicies` já antecipava para "the manifestação de interesse endpoint,
+      once it exists".
+    - **Paginação:** `page` 1-based e `pageSize` com padrão 20 e máximo 60, espelhando
+      `PagedRequest`/`PagedResult` de `SbaCars.BuildingBlocks.Application`. O máximo é
+      menor que os 100 de D02 porque cada item público carrega fotos.
+    - **Erros:** RFC 9457 `ProblemDetails` com a extensão `traceId`, exatamente como o
+      `GlobalExceptionHandler` já produz.
+    - **Nomenclatura:** `camelCase` nos campos JSON, paths no plural, enums em
+      `kebab-case`.
+    - **Versionamento:** sem prefixo de versão no path — o backend já usa `/api/...`
+      direto.
+    - **Valores monetários:** inteiro em **centavos** de BRL, com o sufixo `Centavos`,
+      igual a D02.
+    - **Datas:** ISO 8601 em UTC.
+    - **Arrays vazios** retornam `[]`, nunca `null`.
+    - **`null` significa "não informado"** e é um valor de primeira classe nesta API. A
+      interface o renderiza como o texto `Não informado` (RN-02); omitir a chave seria
+      apagar a distinção entre "não apurado" e "não existe", que é o núcleo do RF-03.
+
+    ## O que esta API deliberadamente não expõe
+
+    A projeção `OfertaElegivel` de D02 traz campos que **não** atravessam para o público:
+
+    | Campo de D02 | Por que não aparece aqui |
+    |---|---|
+    | `placa`, `chassi` | Identificam o veículo em bases de terceiros e não ajudam a decidir (DUX-11) |
+    | `fatos.*.evidencia` | Arquivos de evidência podem conter dado pessoal; o bucket de D02 é privado por decisão (QC-02 de D02). D01 exibe a **fonte** em texto, nunca o anexo |
+    | `fatos.*.atualizadoPor`, `precoOficial.definidoPor` | Nome de operador da Operação central. D01 mostra **quando**, nunca **quem** (DUX-07) |
+    | `situacao`, checklist, solicitações | Fluxo interno de curadoria. O comprador vê status público, não processo |
+    | `localizacao.cep` | Estreita a localização além do necessário para calcular distância até a cidade |
+
+    ## Roteamento
+
+    Os paths deste contrato são relativos ao gateway público. O `SbaCars.Gateway.Public`
+    já mapeia `/api/catalog/{**rest}` para o catalog-service removendo o prefixo e
+    reaplicando `/api`:
+
+    | Consumidor chama (gateway) | catalog-service implementa |
+    |---|---|
+    | `GET /api/catalog/itens` | `GET /api/itens` |
+    | `POST /api/catalog/interesses` | `POST /api/interesses` |
+
+    A rota atual do gateway aceita apenas `GET`, `HEAD` e `OPTIONS`. Os três `POST` deste
+    contrato exigem rotas novas — ver AP-01 e AP-02 no `api-contract.md`.
+
+    ## Contrato de entrada (D02 → D01)
+
+    Fora do escopo HTTP desta API, mas é a fonte de tudo que ela devolve:
+
+    - **Caminho quente:** os eventos `estoque.oferta-incluida`,
+      `estoque.oferta-atualizada`, `estoque.oferta-retirada` e
+      `estoque.disponibilidade-alterada`, consumidos via Rebus/RabbitMQ. São eles que
+      sustentam a meta de reflexo em até uma hora.
+    - **Reconciliação:** `GET /ofertas-elegiveis` da API de D02, a cada 15 minutos
+      (QC-04 de D02), com client credentials e o scope `estoque:integrar`.
+
+    ## Eventos publicados
+
+    Publicados via Rebus/RabbitMQ como CloudEvents por `SbaCars.BuildingBlocks.Messaging`.
+    Os três primeiros já existem em `SbaCars.Contracts.Catalogo.V1`:
+    `catalogo.item-publicado`, `catalogo.item-atualizado`, `catalogo.interesse-solicitado`.
+    `catalogo.item-favoritado` e `catalogo.comparacao-realizada` ainda não existem — ver
+    AP-04.
+  version: 1.0.0
+  contact:
+    name: Operação central — domínio D01
+
+servers:
+  - url: http://localhost:5000/api/catalog
+    description: Desenvolvimento local, via gateway público
+  - url: https://autotransparencia.com.br/api/catalog
+    description: Produção, via gateway público
+
+security: []
+
+tags:
+  - name: Catalogo
+    description: Listagem, busca, filtros, proximidade e detalhe do item (RF-01, RF-02, RF-03, RF-04)
+  - name: Localizacao
+    description: Base de cidades usada como localização de referência do comprador (RF-02)
+  - name: Interesse
+    description: Início da manifestação de interesse encaminhada a D03 (RF-05)
+  - name: Engajamento
+    description: Favoritos e comparação por navegador identificado (RF-06, RF-07) — Fase 2
+
+paths:
+  # ─── Catálogo ─────────────────────────────────────────────────────────────
+  /itens:
+    get:
+      summary: Listar e buscar itens do catálogo
+      description: |
+        Retorna a página de itens descobríveis, aplicando `AND` entre os filtros e `OR`
+        entre os valores de um mesmo filtro de lista.
+
+        **Só devolve itens em status público `disponivel` ou `reservado`** (RF-01, RF-04).
+        Vendidos, retirados, suspensos e em preparação nunca aparecem aqui — nem com
+        filtro explícito, porque o filtro não existe.
+
+        ## Localização de referência e ordenação
+
+        A distância e a ordenação por proximidade dependem de uma localização de
+        referência, informada de uma de duas formas mutuamente exclusivas:
+
+        | Como | Parâmetros | Origem na interface |
+        |---|---|---|
+        | Geolocalização do navegador | `latitude` + `longitude` | Permissão concedida em M02 |
+        | Cidade escolhida | `cidadeReferenciaId` | Escolha manual em M02 |
+
+        Sem nenhuma delas, `distanciaKm` vem `null` em todos os itens e a ordenação
+        padrão passa a ser `publicacao:desc` (DP-08). Isso **não é um estado degradado**:
+        é um modo pleno de uso, e a interface o apresenta como tal.
+
+        Pedir `ordenar=proximidade` sem localização de referência retorna 422 — silenciar
+        e ordenar por outra coisa faria a interface mentir sobre o que está exibindo.
+
+        ## Carroceria
+
+        O filtro por carroceria do RF-02 **não existe nesta versão**: D02 ainda não
+        fornece o atributo (DP-07). O cliente descobre isso por `GET /filtros`, não por
+        lista fixa no código. Quando D02 passar a fornecer, a faceta aparece e um
+        parâmetro `carroceria` é acrescentado em uma versão menor, sem quebrar clientes.
+      operationId: listarItens
+      tags: [Catalogo]
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/PageSize'
+        - name: busca
+          in: query
+          description: Busca livre por marca, modelo ou versão. Mínimo de 2 caracteres.
+          required: false
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 80
+            examples:
+              - civic
+        - name: marca
+          in: query
+          description: Uma ou mais marcas, exatamente como devolvidas por `GET /filtros`.
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          explode: true
+        - name: modelo
+          in: query
+          description: Um ou mais modelos.
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          explode: true
+        - name: anoMin
+          in: query
+          description: Ano de fabricação mínimo, inclusivo.
+          required: false
+          schema:
+            type: integer
+            minimum: 1950
+            maximum: 2100
+            examples:
+              - 2018
+        - name: anoMax
+          in: query
+          description: Ano de fabricação máximo, inclusivo.
+          required: false
+          schema:
+            type: integer
+            minimum: 1950
+            maximum: 2100
+            examples:
+              - 2024
+        - name: precoMinCentavos
+          in: query
+          description: Preço oficial mínimo, em centavos de BRL.
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            examples:
+              - 5000000
+        - name: precoMaxCentavos
+          in: query
+          description: Preço oficial máximo, em centavos de BRL.
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            examples:
+              - 9500000
+        - name: quilometragemMax
+          in: query
+          description: Quilometragem máxima, inclusiva.
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            examples:
+              - 80000
+        - name: combustivel
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          explode: true
+        - name: cambio
+          in: query
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+          explode: true
+        - name: uf
+          in: query
+          description: Uma ou mais siglas de unidade federativa da localização do veículo.
+          required: false
+          schema:
+            type: array
+            items:
+              type: string
+              minLength: 2
+              maxLength: 2
+              pattern: '^[A-Z]{2}$'
+          explode: true
+        - name: cidadeId
+          in: query
+          description: Uma ou mais cidades do veículo, por código IBGE.
+          required: false
+          schema:
+            type: array
+            items:
+              type: integer
+          explode: true
+        - name: latitude
+          in: query
+          description: |
+            Latitude da localização de referência. Exige `longitude` e é incompatível com
+            `cidadeReferenciaId`. **Não é persistida** — nem em banco, nem em log (QA-08).
+          required: false
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+            examples:
+              - -22.9099
+        - name: longitude
+          in: query
+          description: Longitude da localização de referência. Exige `latitude`.
+          required: false
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+            examples:
+              - -47.0626
+        - name: cidadeReferenciaId
+          in: query
+          description: |
+            Código IBGE da cidade escolhida manualmente como localização de referência.
+            Incompatível com `latitude`/`longitude`.
+          required: false
+          schema:
+            type: integer
+            examples:
+              - 3509502
+        - name: raioKm
+          in: query
+          description: |
+            Distância máxima, em quilômetros, entre a localização de referência e a cidade
+            do veículo. Exige localização de referência; sem ela retorna 422.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 3000
+            examples:
+              - 150
+        - name: ordenar
+          in: query
+          description: |
+            Ordenação do resultado. O padrão é `proximidade` quando há localização de
+            referência e `publicacao:desc` quando não há (DP-08). Não há valor `default`
+            declarado justamente porque ele depende dessa condição.
+          required: false
+          schema:
+            $ref: '#/components/schemas/OrdenacaoItens'
+      responses:
+        '200':
+          description: Página de itens retornada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemResumoPaginado'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '422':
+          $ref: '#/components/responses/CombinacaoInvalida'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        Todo filtro, a ordenação e a página entram na query string da rota `/`, para que o
+        resultado seja compartilhável e sobreviva ao refresh (§4 da ux-spec). A localização
+        de referência **não** entra: coordenada em link compartilhado vaza dado de quem
+        compartilhou.
+
+        Aplique debounce de 300ms em `busca`. Ao trocar de filtro, mova o foco para a
+        contagem de resultados e anuncie-a em `aria-live` (§10 da ux-spec).
+
+        `sugestoes` só vem preenchido quando `totalCount` é 0; é o conteúdo da T01-b.
+      x-backend-notes: |
+        Distância calculada com fórmula de Haversine sobre a semente estática de municípios
+        (QA-02). Para ordenar por proximidade sem calcular a distância de todo o catálogo,
+        filtre antes por um envelope retangular de latitude/longitude e refine depois.
+
+        Índices esperados: `(statusPublico, publicadoEm DESC)` para o padrão sem
+        localização, e índices de faixa em preço, ano e quilometragem. A busca livre pede
+        índice trigram sobre marca, modelo e versão.
+
+        `sugestoes` custa consultas de contagem adicionais — calcule-as **apenas** quando o
+        resultado vier vazio.
+
+  /itens/{itemId}:
+    get:
+      summary: Detalhe do item do catálogo
+      description: |
+        Carga **única** da página do veículo. O frontend não deve compor essa tela com
+        várias chamadas.
+
+        Responde 200 também para itens `vendido` e `indisponivel`, com o corpo reduzido
+        descrito em `ItemDetalhe`: identificação, status e nada mais — sem fotos, sem
+        preço, sem ficha técnica, sem fatos (RN-09, tela T03-c). Um 404 seria enganoso,
+        porque o item existiu e a diferença entre "vendido" e "nunca existiu" é
+        exatamente o que o comprador precisa saber.
+
+        404 fica reservado para um `itemId` que nunca correspondeu a item algum.
+      operationId: obterItem
+      tags: [Catalogo]
+      parameters:
+        - $ref: '#/components/parameters/ItemId'
+        - name: latitude
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+            minimum: -90
+            maximum: 90
+        - name: longitude
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+            minimum: -180
+            maximum: 180
+        - name: cidadeReferenciaId
+          in: query
+          description: Alternativa a `latitude`/`longitude`, para exibir a distância no detalhe.
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Item encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ItemDetalhe'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        `acoes` existe para que a interface não reimplemente a regra de status: se
+        `podeManifestarInteresse` for `false`, a tela é a T03-c e o botão não é renderizado
+        — não renderizado desabilitado.
+
+        `fatos.*.apresentacao` diz qual dos dois formatos renderizar, sem que o cliente
+        precise inferir por `conteudo != null`.
+      x-backend-notes: |
+        `fichaTecnica` é montada no servidor, inclusive as linhas cujo valor é `null`. A
+        ordem e o conjunto de linhas são responsabilidade do backend, para que a ampliação
+        vinda do PRD-B não exija mudança de frontend (QA-05).
+
+  /itens/resumos:
+    get:
+      summary: Resumo público de itens já conhecidos pelo navegador
+      description: |
+        Resolve uma lista de identificadores guardados no `localStorage` — favoritos e
+        seleção de comparação — em um resumo exibível.
+
+        **É o único endpoint que devolve itens fora de `disponivel` e `reservado`**, e
+        existe precisamente por isso. `GET /itens` esconde vendidos e indisponíveis
+        porque ninguém deve descobri-los; mas quem já favoritou um veículo tem direito de
+        saber o que aconteceu com ele (RF-04, RF-06, RN-09).
+
+        O corpo de cada item é modulado pelo status:
+
+        | Status | O que vem |
+        |---|---|
+        | `disponivel`, `reservado` | Resumo completo, igual ao da listagem |
+        | `vendido` | Identificação e status. **Sem foto, sem preço, sem link** |
+        | `indisponivel` | Identificação e status |
+
+        Identificadores desconhecidos são devolvidos em `naoEncontrados`, e não geram
+        erro: um `localStorage` antigo pode conter itens que nunca existiram nesta base.
+      operationId: obterResumosDeItens
+      tags: [Catalogo]
+      parameters:
+        - name: itemIds
+          in: query
+          description: Identificadores dos itens. Máximo de 100 por requisição.
+          required: true
+          schema:
+            type: array
+            minItems: 1
+            maxItems: 100
+            items:
+              type: string
+              format: uuid
+          explode: true
+        - name: latitude
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+        - name: longitude
+          in: query
+          required: false
+          schema:
+            type: number
+            format: double
+        - name: cidadeReferenciaId
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Resumos resolvidos.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ResumosDeItens'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        Consumido por T05 (favoritos) e pela `BarraComparacao`. Depois da resposta, remova
+        do `localStorage` os identificadores devolvidos em `naoEncontrados` — eles não vão
+        voltar a existir.
+
+  /filtros:
+    get:
+      summary: Facetas disponíveis para o painel de filtros
+      description: |
+        Devolve os valores que existem no catálogo agora, com a contagem de itens de cada
+        um, e as faixas de ano, preço e quilometragem.
+
+        **O painel de filtros é montado a partir desta resposta, não de listas fixas no
+        código.** É o que faz o quarto critério do RF-02 se cumprir sozinho: enquanto D02
+        não fornecer carroceria, a faceta não vem e o filtro não é oferecido; no dia em
+        que fornecer, ele aparece sem alteração no frontend (QA-07).
+
+        `filtrosIndisponiveis` é diagnóstico — declara o que existe no domínio mas ainda
+        não pode ser filtrado, e por quê. A interface **não** deve renderizá-lo como
+        campo desabilitado: um filtro cinza que nunca liga é ruído para o comprador.
+      operationId: obterFiltrosDisponiveis
+      tags: [Catalogo]
+      responses:
+        '200':
+          description: Facetas retornadas.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FiltrosDisponiveis'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-backend-notes: |
+        Resposta cacheável — o conteúdo muda apenas quando o catálogo muda. Use
+        `Cache-Control: public, max-age=300` e invalide ao processar eventos de D02.
+        As contagens ignoram os filtros já aplicados pelo usuário: são o universo, não a
+        interseção.
+
+  # ─── Localização ──────────────────────────────────────────────────────────
+  /cidades:
+    get:
+      summary: Buscar cidade para usar como localização de referência
+      description: |
+        Autocompletar do campo "Escolher uma cidade" do M02.
+
+        Devolve municípios da **base de referência inteira**, não apenas os que têm
+        veículo no catálogo. O comprador mora onde mora; restringir a busca às cidades com
+        oferta o obrigaria a escolher uma cidade falsa para ver distâncias verdadeiras.
+      operationId: buscarCidades
+      tags: [Localizacao]
+      parameters:
+        - name: busca
+          in: query
+          description: Trecho do nome do município. Mínimo de 2 caracteres, sem sensibilidade a acento.
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 60
+            examples:
+              - camp
+        - name: uf
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+            pattern: '^[A-Z]{2}$'
+        - name: limite
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 20
+            default: 10
+      responses:
+        '200':
+          description: Cidades encontradas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Cidade'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-backend-notes: |
+        Origem dos dados: semente estática de municípios brasileiros (código IBGE, nome,
+        UF, latitude, longitude), carregada por migration do catalog-service (QA-02).
+        Sem integração externa — restrição técnica explícita do PRD.
+
+        A resposta **não** devolve coordenadas: o cliente não precisa delas, e não
+        entregá-las evita transformar este endpoint em uma base geográfica raspável.
+
+  # ─── Interesse ────────────────────────────────────────────────────────────
+  /interesses:
+    post:
+      summary: Iniciar manifestação de interesse
+      description: |
+        Registra a manifestação com o **contexto da descoberta** e emite
+        `catalogo.interesse-solicitado`. A continuidade — captação do contato,
+        qualificação, atendimento — pertence a D03 (PD-001).
+
+        **Nenhum campo deste corpo é dado pessoal.** Não há nome, telefone, e-mail nem
+        mensagem, e o servidor deve rejeitar qualquer campo adicional em vez de armazená-lo.
+
+        ## Por que o evento sai daqui, e não de D03
+
+        A conversão descoberta → interesse é a métrica primária do PRD. Emitir o evento no
+        instante da intenção — antes de o formulário de D03 ser preenchido — torna a
+        métrica observável mesmo que D03 ainda não exista, e mede o que o PRD define:
+        sessões que abrem um detalhe e manifestam interesse.
+
+        ## Divergência entre o que foi exibido e o que vale agora
+
+        O corpo carrega o preço e o status que estavam na tela. O servidor compara com o
+        vigente e responde de duas formas diferentes, porque os dois casos não são iguais:
+
+        | Situação | Resposta |
+        |---|---|
+        | O item virou `vendido` ou `indisponivel` | **422** — a ação não é oferecida (RF-05) |
+        | O preço mudou, o item continua ofertado | **201** com `divergencia` preenchida |
+
+        Preço mudado não invalida o interesse: invalida o silêncio sobre ele. A interface
+        confirma o interesse e informa o valor vigente.
+      operationId: solicitarInteresse
+      tags: [Interesse]
+      parameters:
+        - $ref: '#/components/parameters/NavegadorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InteresseInput'
+      responses:
+        '201':
+          description: Manifestação registrada e encaminhada.
+          headers:
+            Location:
+              description: URI da manifestação criada.
+              schema:
+                type: string
+                format: uri-reference
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InteresseCriado'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '422':
+          $ref: '#/components/responses/ItemNaoOfertado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        Chamado ao abrir a T04, **antes** de revelar o formulário de D03. O `interesseId`
+        devolvido é a referência que o formulário de D03 envia junto do contato.
+
+        Se esta chamada falhar, não mostre o formulário: sem contexto registrado, D03
+        receberia um contato sem saber de qual veículo se trata.
+
+        Se a chamada de D03 falhar depois, **não** repita esta — o interesse já existe.
+        Informe que a operação retomará o contato (§5, estados da T04).
+      x-backend-notes: |
+        Rota do gateway com `RateLimiterPolicy: sbacars-anonymous-strict`, como o
+        comentário de `RateLimitingPolicies` já previa. Escrita anônima na internet aberta
+        é a superfície mais exposta desta API.
+
+        O evento sai pelo outbox transacional, na mesma transação do registro — a
+        implementação de B5 já cobre esse caminho.
+
+# ─── Engajamento (Fase 2) ─────────────────────────────────────────────────
+  /favoritos:
+    post:
+      summary: Registrar que um navegador favoritou um item
+      description: |
+        Emite `catalogo.item-favoritado`. **Não cria recurso e não guarda lista de
+        favoritos**: por PD-002, a lista vive no `localStorage` do navegador, e é por isso
+        que a resposta é 202 e não 201.
+
+        O que o servidor retém é o registro do evento — item, navegador e instante — que
+        sustenta a métrica "navegadores que favoritaram ou compararam e retornam em 7
+        dias" do PRD. Sem o `navegadorId` essa métrica não é calculável; com ele, e só com
+        ele, nenhum dado de pessoa é envolvido.
+
+        Não existe endpoint de desfavoritar: remover é operação puramente local. O domínio
+        não define evento de remoção, e inventar um aqui criaria escrita anônima sem
+        leitor.
+      operationId: registrarFavorito
+      tags: [Engajamento]
+      parameters:
+        - $ref: '#/components/parameters/NavegadorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FavoritoInput'
+      responses:
+        '202':
+          description: Registro aceito. Nada foi criado no servidor.
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '404':
+          $ref: '#/components/responses/NaoEncontrado'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        Dispare **depois** de atualizar o `localStorage` e a interface. O coração precisa
+        preencher no clique; a rede não pode estar no caminho da resposta visual. Falha
+        aqui não é erro para o comprador — o favorito dele existe do mesmo jeito.
+
+  /comparacoes:
+    post:
+      summary: Montar e registrar a comparação de 2 a 4 veículos
+      description: |
+        Devolve a matriz de comparação já alinhada e emite `catalogo.comparacao-realizada`.
+
+        **O alinhamento é feito no servidor, e isso é a razão de o endpoint existir.** A
+        exigência do RF-07 — toda célula sem valor mostra `Não informado` preservando o
+        alinhamento das linhas — é regra de apresentação de dados ausentes, exatamente o
+        tipo de regra que se degrada quando cada cliente a reimplementa. O servidor devolve
+        a união dos atributos, com `null` onde falta.
+
+        Itens que passaram a `vendido` ou `indisponivel` **não** causam erro: saem em
+        `itensRemovidos` com o motivo, para a interface avisar (RF-07). Se sobrarem menos
+        de 2 itens, a comparação não é montada e a resposta é 422 — o mesmo tratamento de
+        quem pede a comparação de um item só.
+      operationId: montarComparacao
+      tags: [Engajamento]
+      parameters:
+        - $ref: '#/components/parameters/NavegadorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComparacaoInput'
+      responses:
+        '200':
+          description: Comparação montada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comparacao'
+        '400':
+          $ref: '#/components/responses/RequisicaoInvalida'
+        '422':
+          $ref: '#/components/responses/ComparacaoInvalida'
+        '429':
+          $ref: '#/components/responses/LimiteExcedido'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+      x-frontend-notes: |
+        A `BarraComparacao` impede chegar aqui com menos de 2 ou mais de 4 (§3.5 da
+        ux-spec). O 422 é rede de segurança para `localStorage` adulterado ou aba antiga.
+
+components:
+  parameters:
+    Page:
+      name: page
+      in: query
+      description: Página, 1-based. Valores menores que 1 são normalizados para 1.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+        examples:
+          - 1
+    PageSize:
+      name: pageSize
+      in: query
+      description: Itens por página. Máximo de 60; valores maiores são normalizados.
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 60
+        default: 20
+        examples:
+          - 20
+    ItemId:
+      name: itemId
+      in: path
+      description: Identificador público do item do catálogo.
+      required: true
+      schema:
+        type: string
+        format: uuid
+        examples:
+          - 4f2c8a17-3d6b-4e91-a5c0-7b8e1d9f2a34
+    NavegadorId:
+      name: X-Navegador-Id
+      in: header
+      description: |
+        UUID gerado no cliente e guardado no `localStorage`. Marca um **navegador**, não
+        uma pessoa (RN-07, PD-002). Não é credencial: não autentica, não autoriza e não
+        pode ser usado para recuperar dado algum.
+      required: true
+      schema:
+        type: string
+        format: uuid
+        examples:
+          - 9b7d2e41-5a8c-4f30-b16d-3c9a0e7f4d28
+
+  responses:
+    RequisicaoInvalida:
+      description: Requisição malformada ou parâmetros inválidos.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    NaoEncontrado:
+      description: |
+        Identificador que nunca correspondeu a um item. **Não** é a resposta para item
+        vendido ou retirado — esses devolvem 200 com corpo reduzido.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    CombinacaoInvalida:
+      description: |
+        Combinação de parâmetros inconsistente. Ex.: `ordenar=proximidade` ou `raioKm` sem
+        localização de referência; `latitude`/`longitude` junto de `cidadeReferenciaId`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ItemNaoOfertado:
+      description: |
+        O item não está mais em oferta — `vendido` ou `indisponivel`. A manifestação de
+        interesse não é oferecida nesse estado (RF-05).
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemaItemNaoOfertado'
+    ComparacaoInvalida:
+      description: |
+        Menos de 2 ou mais de 4 itens comparáveis (RN-05), inclusive depois de remover os
+        que saíram de oferta.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    LimiteExcedido:
+      description: |
+        Limite de requisições excedido. O corpo é emitido pelo `OnRejected` de
+        `RateLimitingExtensions` e o cabeçalho `Retry-After` traz os segundos de espera.
+      headers:
+        Retry-After:
+          description: Segundos até a próxima tentativa permitida.
+          schema:
+            type: integer
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    ErroInterno:
+      description: Erro inesperado. O `traceId` correlaciona com o log do servidor.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+  schemas:
+    # ─── Erros ────────────────────────────────────────────────────────────
+    ProblemDetails:
+      type: object
+      description: |
+        RFC 9457, no formato que o `GlobalExceptionHandler` já emite. O corpo nunca carrega
+        stack trace nem nome de tipo interno.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          examples:
+            - https://httpstatuses.io/422
+        title:
+          type: string
+          examples:
+            - Combinação de parâmetros inválida.
+        status:
+          type: integer
+          examples:
+            - 422
+        detail:
+          type: [string, 'null']
+          examples:
+            - Ordenar por proximidade exige uma localização de referência.
+        instance:
+          type: [string, 'null']
+          examples:
+            - /api/itens
+        traceId:
+          type: string
+          examples:
+            - 0af7651916cd43dd8448eb211c80319c
+
+    ProblemaItemNaoOfertado:
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          required: [statusPublico]
+          properties:
+            statusPublico:
+              $ref: '#/components/schemas/StatusPublico'
+      description: |
+        Acrescenta o status que causou a recusa, para a interface escolher entre "Este
+        veículo foi vendido" e "Este veículo não está mais disponível" sem uma segunda
+        chamada.
+
+    # ─── Enums ────────────────────────────────────────────────────────────
+    StatusPublico:
+      type: string
+      description: |
+        Projeção pública dos dois eixos de D02 — situação da oferta e disponibilidade.
+        - `disponivel`: descobrível, com todas as ações.
+        - `reservado`: descobrível, com aviso de que há alguém à frente (RN-08). Mantém
+          todas as ações.
+        - `vendido`: sai da listagem e da busca; sobrevive nos favoritos de quem já o
+          havia favoritado, sem foto e sem detalhe (RN-09).
+        - `indisponivel`: a oferta saiu do catálogo — retirada, suspensa ou em preparação
+          em D02.
+      enum: [disponivel, reservado, vendido, indisponivel]
+      examples:
+        - disponivel
+
+    OrdenacaoItens:
+      type: string
+      description: |
+        `proximidade` exige localização de referência. `publicacao:desc` é a ordem de
+        entrada no catálogo, não de cadastro em D02.
+      enum:
+        - proximidade
+        - preco:asc
+        - preco:desc
+        - quilometragem:asc
+        - ano:desc
+        - publicacao:desc
+      examples:
+        - proximidade
+
+    TipoLocalizacaoReferencia:
+      type: string
+      enum: [ausente, geolocalizacao, manual]
+      examples:
+        - manual
+
+    TipoBlocoFato:
+      type: string
+      enum: [origem, condicao, historico]
+      examples:
+        - origem
+
+    ApresentacaoFato:
+      type: string
+      description: |
+        Como o bloco deve ser renderizado.
+        - `conteudo`: há o que a operação apurou, com fonte quando existir.
+        - `limitacao`: a operação declarou que não conseguiu apurar; exiba o texto literal.
+        - `ausente`: nem uma coisa nem outra. **Não deve ocorrer** — o critério CM-6 de D02
+          impede a elegibilidade nesse caso — mas está no enum para que a interface tenha um
+          caminho definido se ocorrer, em vez de quebrar (§3.3 da ux-spec).
+      enum: [conteudo, limitacao, ausente]
+      examples:
+        - conteudo
+
+    OrigemDescoberta:
+      type: string
+      description: |
+        De onde o comprador chegou ao veículo cujo interesse manifestou. Granularidade
+        decidida em QA-04 e sujeita a confirmação pelo PRD de D03.
+      enum: [listagem, busca, favoritos, comparacao, link-direto]
+      examples:
+        - busca
+
+    MotivoRemocaoComparacao:
+      type: string
+      enum: [vendido, indisponivel, nao-encontrado]
+      examples:
+        - vendido
+
+    # ─── Item ─────────────────────────────────────────────────────────────
+    LocalizacaoPublica:
+      type: object
+      description: |
+        Cidade e UF do veículo. **Sem CEP** — estreitaria a localização além do necessário
+        para calcular distância até a cidade.
+      required: [cidade, uf]
+      properties:
+        cidadeId:
+          type: [integer, 'null']
+          description: Código IBGE do município, quando reconhecido na base de referência.
+          examples:
+            - 3509502
+        cidade:
+          type: string
+          examples:
+            - Campinas
+        uf:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          examples:
+            - SP
+
+    Foto:
+      type: object
+      description: Mídia mantida pelo PRD-B. Ausente enquanto o PRD-B não entregar conteúdo.
+      required: [url, alt]
+      properties:
+        url:
+          type: string
+          format: uri
+          examples:
+            - https://cdn.autotransparencia.com.br/itens/4f2c8a17/frente.jpg
+        alt:
+          type: string
+          description: Texto alternativo descritivo. Obrigatório — acessibilidade não é opcional.
+          examples:
+            - Honda Civic EXL prata, vista frontal
+        largura:
+          type: [integer, 'null']
+        altura:
+          type: [integer, 'null']
+
+    ItemResumo:
+      type: object
+      description: |
+        Unidade da grade de resultados e dos favoritos. Corresponde ao `CardVeiculo` do §6
+        da ux-spec.
+      required:
+        [itemId, titulo, statusPublico, precoOficialCentavos, moeda, precoAtualizadoEm,
+         localizacao, publicadoEm]
+      properties:
+        itemId:
+          type: string
+          format: uuid
+          examples:
+            - 4f2c8a17-3d6b-4e91-a5c0-7b8e1d9f2a34
+        titulo:
+          type: string
+          description: |
+            Título comercial do PRD-B ou, na ausência dele, `Marca Modelo Versão` composto
+            pelo servidor. O cliente nunca precisa montar esse texto.
+          examples:
+            - Honda Civic EXL 2.0
+        marca:
+          type: [string, 'null']
+          examples:
+            - Honda
+        modelo:
+          type: [string, 'null']
+          examples:
+            - Civic
+        versao:
+          type: [string, 'null']
+          examples:
+            - EXL 2.0
+        anoFabricacao:
+          type: [integer, 'null']
+          examples:
+            - 2021
+        anoModelo:
+          type: [integer, 'null']
+          examples:
+            - 2022
+        quilometragem:
+          type: [integer, 'null']
+          examples:
+            - 48300
+        combustivel:
+          type: [string, 'null']
+          examples:
+            - Flex
+        cambio:
+          type: [string, 'null']
+          examples:
+            - Automático
+        cor:
+          type: [string, 'null']
+          examples:
+            - Prata
+        precoOficialCentavos:
+          type: integer
+          minimum: 0
+          description: Preço oficial vigente em D02, em centavos de BRL.
+          examples:
+            - 8790000
+        moeda:
+          type: string
+          const: BRL
+        precoAtualizadoEm:
+          type: string
+          format: date-time
+          description: Quando o preço mudou pela última vez. Exibido junto do valor (DUX-07).
+          examples:
+            - 2026-08-12T14:22:05Z
+        localizacao:
+          $ref: '#/components/schemas/LocalizacaoPublica'
+        distanciaKm:
+          type: [integer, 'null']
+          description: |
+            Distância aproximada entre a localização de referência e a cidade do veículo.
+            `null` quando não há localização de referência — e nesse caso a interface
+            **oculta** o campo, não o mostra como `Não informado` (§5, T01-c).
+          examples:
+            - 42
+        statusPublico:
+          $ref: '#/components/schemas/StatusPublico'
+        fotoPrincipal:
+          oneOf:
+            - $ref: '#/components/schemas/Foto'
+            - type: 'null'
+          description: Ausente (`null`) enquanto o PRD-B não entregar mídia para este item.
+        publicadoEm:
+          type: string
+          format: date-time
+          examples:
+            - 2026-08-06T10:00:00Z
+        atualizadoEm:
+          type: string
+          format: date-time
+          examples:
+            - 2026-08-14T18:02:11Z
+
+    SugestaoDeRelaxamento:
+      type: object
+      description: |
+        Uma ação de um clique que devolveria resultados. Só vem quando a busca não
+        encontrou nada (RF-02, tela T01-b).
+      required: [campo, rotulo, quantidadeEstimada]
+      properties:
+        campo:
+          type: string
+          description: Nome do parâmetro de consulta a alterar ou remover.
+          examples:
+            - precoMaxCentavos
+        rotulo:
+          type: string
+          description: Texto pronto para o botão, em PT-BR.
+          examples:
+            - Ampliar o preço até R$ 95.000
+        valorSugerido:
+          type: [string, 'null']
+          description: Novo valor do parâmetro. `null` significa remover o filtro.
+          examples:
+            - '9500000'
+        quantidadeEstimada:
+          type: integer
+          minimum: 1
+          description: |
+            Quantos itens a busca devolveria com essa alteração. Sugerir sem contar
+            empurraria o comprador para outro resultado vazio.
+          examples:
+            - 12
+
+    LocalizacaoReferenciaEco:
+      type: object
+      description: |
+        Eco da localização de referência efetivamente usada, para a faixa "Mostrando
+        distâncias a partir de..." da T01. Nunca devolve as coordenadas recebidas.
+      required: [tipo]
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TipoLocalizacaoReferencia'
+        cidade:
+          type: [string, 'null']
+          description: Município mais próximo das coordenadas, ou o escolhido manualmente.
+          examples:
+            - Campinas
+        uf:
+          type: [string, 'null']
+          examples:
+            - SP
+
+    ItemResumoPaginado:
+      type: object
+      required:
+        [items, page, pageSize, totalCount, totalPages, hasNextPage, hasPreviousPage,
+         ordenacaoAplicada, localizacaoReferencia, sugestoes]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemResumo'
+        page:
+          type: integer
+          examples:
+            - 1
+        pageSize:
+          type: integer
+          examples:
+            - 20
+        totalCount:
+          type: integer
+          examples:
+            - 142
+        totalPages:
+          type: integer
+          examples:
+            - 8
+        hasNextPage:
+          type: boolean
+        hasPreviousPage:
+          type: boolean
+        ordenacaoAplicada:
+          $ref: '#/components/schemas/OrdenacaoItens'
+        localizacaoReferencia:
+          $ref: '#/components/schemas/LocalizacaoReferenciaEco'
+        sugestoes:
+          type: array
+          description: Vazio quando há resultados. Preenchido apenas quando `totalCount` é 0.
+          items:
+            $ref: '#/components/schemas/SugestaoDeRelaxamento'
+
+    BlocoFatoPublico:
+      type: object
+      description: |
+        Um dos três blocos apurados por D02, na forma que o comprador vê. **Sem evidência
+        e sem autor** — ver "O que esta API deliberadamente não expõe".
+      required: [tipo, rotulo, apresentacao, atualizadoEm]
+      properties:
+        tipo:
+          $ref: '#/components/schemas/TipoBlocoFato'
+        rotulo:
+          type: string
+          description: Rótulo pronto em PT-BR, para o cliente não manter um mapa de tradução.
+          examples:
+            - Origem
+        apresentacao:
+          $ref: '#/components/schemas/ApresentacaoFato'
+        conteudo:
+          type: [string, 'null']
+          description: O que a operação apurou. Preenchido quando `apresentacao` é `conteudo`.
+          examples:
+            - Veículo de frota corporativa, único proprietário pessoa jurídica.
+        fonte:
+          type: [string, 'null']
+          description: De onde veio o fato, em texto. O arquivo de evidência nunca é exposto.
+          examples:
+            - Contrato de cessão Localiza, 02/2026
+        limitacaoDeclarada:
+          type: [string, 'null']
+          description: |
+            Texto **literal** escrito pela operação em D02, exibido quando `apresentacao`
+            é `limitacao`. Nunca substituído por frase genérica (RF-03).
+          examples:
+            - Não foi possível obter o histórico de sinistros deste veículo junto às bases consultadas.
+        atualizadoEm:
+          type: string
+          format: date-time
+          examples:
+            - 2026-08-10T11:05:02Z
+
+    FatosPublicos:
+      type: object
+      required: [origem, condicao, historico]
+      properties:
+        origem:
+          $ref: '#/components/schemas/BlocoFatoPublico'
+        condicao:
+          $ref: '#/components/schemas/BlocoFatoPublico'
+        historico:
+          $ref: '#/components/schemas/BlocoFatoPublico'
+
+    AtributoFicha:
+      type: object
+      description: |
+        Uma linha da ficha técnica. **A linha existe mesmo com `valor` nulo** — é o que
+        materializa o `Não informado` do RN-02 sem que o cliente decida o que mostrar.
+      required: [codigo, rotulo]
+      properties:
+        codigo:
+          type: string
+          examples:
+            - quilometragem
+        rotulo:
+          type: string
+          examples:
+            - Quilometragem
+        valor:
+          type: [string, 'null']
+          description: Já formatado para exibição. `null` é renderizado como `Não informado`.
+          examples:
+            - 48.300 km
+        grupo:
+          type: [string, 'null']
+          description: Agrupamento visual da ficha.
+          examples:
+            - Mecânica
+
+    ApresentacaoComercial:
+      type: object
+      description: |
+        Conteúdo mantido pelo PRD-B. Quando este objeto é `null`, a interface **não
+        renderiza** o bloco — não renderiza vazio nem com "em breve" (§3.4 da ux-spec).
+      properties:
+        titulo:
+          type: [string, 'null']
+        descricao:
+          type: [string, 'null']
+        destaques:
+          type: array
+          items:
+            type: string
+        fotos:
+          type: array
+          items:
+            $ref: '#/components/schemas/Foto'
+
+    AcoesDisponiveis:
+      type: object
+      description: |
+        Derivadas do status público, para a interface não reimplementar a regra. Espelha a
+        escolha feita em D02 com `transicoesPermitidas` e `podeSolicitarElegibilidade`.
+      required: [podeManifestarInteresse, podeFavoritar, podeComparar]
+      properties:
+        podeManifestarInteresse:
+          type: boolean
+          description: |
+            `true` em `disponivel` e `reservado`. Em `false`, a interface não renderiza o
+            botão — não o renderiza desabilitado (RF-05).
+        podeFavoritar:
+          type: boolean
+        podeComparar:
+          type: boolean
+
+    ItemDetalhe:
+      type: object
+      description: |
+        Carga única da página do veículo.
+
+        **O corpo é modulado pelo status.** Em `vendido` e `indisponivel` vêm apenas
+        `itemId`, `titulo`, identificação, `statusPublico` e `acoes` — sem preço, sem
+        fotos, sem fatos, sem ficha técnica (RN-09, tela T03-c). É por isso que só esses
+        campos são obrigatórios.
+      required: [itemId, titulo, statusPublico, acoes]
+      properties:
+        itemId:
+          type: string
+          format: uuid
+        titulo:
+          type: string
+          examples:
+            - Honda Civic EXL 2.0
+        marca:
+          type: [string, 'null']
+        modelo:
+          type: [string, 'null']
+        versao:
+          type: [string, 'null']
+        anoFabricacao:
+          type: [integer, 'null']
+        anoModelo:
+          type: [integer, 'null']
+        quilometragem:
+          type: [integer, 'null']
+        statusPublico:
+          $ref: '#/components/schemas/StatusPublico'
+        avisoStatus:
+          type: [string, 'null']
+          description: |
+            Texto pronto do aviso, quando o status pede um. Ex.: `Há alguém à frente neste
+            veículo. Você ainda pode demonstrar interesse.`
+          examples:
+            - Há alguém à frente neste veículo. Você ainda pode demonstrar interesse.
+        precoOficialCentavos:
+          type: [integer, 'null']
+          minimum: 0
+        moeda:
+          type: [string, 'null']
+        precoAtualizadoEm:
+          type: [string, 'null']
+          format: date-time
+        localizacao:
+          oneOf:
+            - $ref: '#/components/schemas/LocalizacaoPublica'
+            - type: 'null'
+        distanciaKm:
+          type: [integer, 'null']
+        fatos:
+          oneOf:
+            - $ref: '#/components/schemas/FatosPublicos'
+            - type: 'null'
+        fichaTecnica:
+          type: array
+          items:
+            $ref: '#/components/schemas/AtributoFicha'
+        apresentacaoComercial:
+          oneOf:
+            - $ref: '#/components/schemas/ApresentacaoComercial'
+            - type: 'null'
+        acoes:
+          $ref: '#/components/schemas/AcoesDisponiveis'
+        publicadoEm:
+          type: [string, 'null']
+          format: date-time
+        atualizadoEm:
+          type: [string, 'null']
+          format: date-time
+
+    ItemConhecido:
+      type: object
+      description: |
+        Resumo de um item que o navegador já conhece. Em `vendido` e `indisponivel` traz
+        apenas identificação e status — sem foto, sem preço, sem link para o detalhe.
+      required: [itemId, titulo, statusPublico, acessivel]
+      properties:
+        itemId:
+          type: string
+          format: uuid
+        titulo:
+          type: string
+          examples:
+            - Honda Civic EXL 2.0
+        statusPublico:
+          $ref: '#/components/schemas/StatusPublico'
+        acessivel:
+          type: boolean
+          description: |
+            `false` em `vendido` e `indisponivel`. A interface não deve criar link para o
+            detalhe quando `false`.
+        aviso:
+          type: [string, 'null']
+          description: Texto pronto do card apagado.
+          examples:
+            - Este veículo foi vendido.
+        resumo:
+          oneOf:
+            - $ref: '#/components/schemas/ItemResumo'
+            - type: 'null'
+          description: Presente apenas quando `acessivel` é `true`.
+
+    ResumosDeItens:
+      type: object
+      required: [items, naoEncontrados]
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemConhecido'
+        naoEncontrados:
+          type: array
+          description: |
+            Identificadores que nunca corresponderam a item algum. O cliente deve removê-los
+            do `localStorage`.
+          items:
+            type: string
+            format: uuid
+
+    # ─── Filtros ──────────────────────────────────────────────────────────
+    FacetaValor:
+      type: object
+      required: [valor, rotulo, quantidade]
+      properties:
+        valor:
+          type: string
+          examples:
+            - Honda
+        rotulo:
+          type: string
+          examples:
+            - Honda
+        quantidade:
+          type: integer
+          minimum: 1
+          examples:
+            - 12
+
+    FacetaMarca:
+      allOf:
+        - $ref: '#/components/schemas/FacetaValor'
+        - type: object
+          properties:
+            modelos:
+              type: array
+              items:
+                $ref: '#/components/schemas/FacetaValor'
+
+    FacetaUf:
+      allOf:
+        - $ref: '#/components/schemas/FacetaValor'
+        - type: object
+          properties:
+            cidades:
+              type: array
+              items:
+                $ref: '#/components/schemas/FacetaCidade'
+
+    FacetaCidade:
+      type: object
+      required: [cidadeId, rotulo, quantidade]
+      properties:
+        cidadeId:
+          type: integer
+          examples:
+            - 3509502
+        rotulo:
+          type: string
+          examples:
+            - Campinas
+        quantidade:
+          type: integer
+          examples:
+            - 7
+
+    FaixaInteira:
+      type: object
+      required: [min, max]
+      properties:
+        min:
+          type: integer
+          examples:
+            - 0
+        max:
+          type: integer
+          examples:
+            - 120000
+
+    FiltroIndisponivel:
+      type: object
+      description: |
+        Diagnóstico: um filtro previsto pelo domínio que ainda não pode ser oferecido. A
+        interface **não** o renderiza — ver a descrição de `GET /filtros`.
+      required: [campo, motivo]
+      properties:
+        campo:
+          type: string
+          examples:
+            - carroceria
+        motivo:
+          type: string
+          examples:
+            - D02 ainda não fornece este atributo (DP-07 do PRD).
+
+    FiltrosDisponiveis:
+      type: object
+      required:
+        [marcas, combustiveis, cambios, ufs, ano, preco, quilometragem, filtrosIndisponiveis]
+      properties:
+        marcas:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetaMarca'
+        combustiveis:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetaValor'
+        cambios:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetaValor'
+        ufs:
+          type: array
+          items:
+            $ref: '#/components/schemas/FacetaUf'
+        ano:
+          $ref: '#/components/schemas/FaixaInteira'
+        preco:
+          $ref: '#/components/schemas/FaixaInteira'
+        quilometragem:
+          $ref: '#/components/schemas/FaixaInteira'
+        filtrosIndisponiveis:
+          type: array
+          items:
+            $ref: '#/components/schemas/FiltroIndisponivel'
+
+    Cidade:
+      type: object
+      description: Município da base de referência. Sem coordenadas — ver as notas do endpoint.
+      required: [cidadeId, nome, uf]
+      properties:
+        cidadeId:
+          type: integer
+          description: Código IBGE do município.
+          examples:
+            - 3509502
+        nome:
+          type: string
+          examples:
+            - Campinas
+        uf:
+          type: string
+          pattern: '^[A-Z]{2}$'
+          examples:
+            - SP
+
+    # ─── Interesse ────────────────────────────────────────────────────────
+    ContextoDescoberta:
+      type: object
+      description: |
+        O que o comprador estava vendo quando decidiu manifestar interesse. Termo canônico
+        do PRD. **Nenhum campo aqui é dado pessoal** (PD-001).
+      required: [origem, precoApresentadoCentavos, statusApresentado]
+      properties:
+        origem:
+          $ref: '#/components/schemas/OrigemDescoberta'
+        precoApresentadoCentavos:
+          type: integer
+          minimum: 0
+          description: Preço que estava na tela no momento do clique.
+          examples:
+            - 8790000
+        statusApresentado:
+          $ref: '#/components/schemas/StatusPublico'
+        filtrosAplicados:
+          type: [string, 'null']
+          description: |
+            Query string dos filtros ativos, para D03 entender o que o comprador procurava.
+            Nunca inclui coordenadas.
+          examples:
+            - marca=Honda&precoMaxCentavos=9500000
+        posicaoNoResultado:
+          type: [integer, 'null']
+          minimum: 1
+          description: Posição do item no resultado em que ele foi encontrado.
+          examples:
+            - 3
+
+    InteresseInput:
+      type: object
+      required: [itemId, contexto]
+      additionalProperties: false
+      properties:
+        itemId:
+          type: string
+          format: uuid
+        contexto:
+          $ref: '#/components/schemas/ContextoDescoberta'
+
+    DivergenciaContexto:
+      type: object
+      description: |
+        Preenchida quando o preço mudou entre a exibição e o clique. O interesse é aceito
+        do mesmo jeito; a interface informa o valor vigente.
+      required: [campo, valorApresentadoCentavos, valorVigenteCentavos]
+      properties:
+        campo:
+          type: string
+          const: preco
+        valorApresentadoCentavos:
+          type: integer
+          examples:
+            - 8790000
+        valorVigenteCentavos:
+          type: integer
+          examples:
+            - 8450000
+
+    InteresseCriado:
+      type: object
+      required: [interesseId, itemId, criadoEm]
+      properties:
+        interesseId:
+          type: string
+          format: uuid
+          description: |
+            Referência que o formulário de D03 envia junto do contato, para ligar a
+            captação ao contexto da descoberta.
+          examples:
+            - 1d8f3b62-7c4a-40e5-9b21-6a0e5c8d3f97
+        itemId:
+          type: string
+          format: uuid
+        criadoEm:
+          type: string
+          format: date-time
+          examples:
+            - 2026-08-16T13:41:22Z
+        divergencia:
+          oneOf:
+            - $ref: '#/components/schemas/DivergenciaContexto'
+            - type: 'null'
+
+    # ─── Engajamento ──────────────────────────────────────────────────────
+    FavoritoInput:
+      type: object
+      required: [itemId]
+      additionalProperties: false
+      properties:
+        itemId:
+          type: string
+          format: uuid
+
+    ComparacaoInput:
+      type: object
+      required: [itemIds]
+      additionalProperties: false
+      properties:
+        itemIds:
+          type: array
+          minItems: 2
+          maxItems: 4
+          description: De 2 a 4 itens (RN-05).
+          items:
+            type: string
+            format: uuid
+
+    CelulaComparacao:
+      type: object
+      required: [itemId]
+      properties:
+        itemId:
+          type: string
+          format: uuid
+        valor:
+          type: [string, 'null']
+          description: |
+            Já formatado. `null` é renderizado como `Não informado`, **sem suprimir a
+            linha** (RF-07).
+          examples:
+            - 48.300 km
+
+    LinhaComparacao:
+      type: object
+      required: [codigo, rotulo, celulas]
+      properties:
+        codigo:
+          type: string
+          examples:
+            - quilometragem
+        rotulo:
+          type: string
+          examples:
+            - Quilometragem
+        grupo:
+          type: [string, 'null']
+          examples:
+            - Uso
+        celulas:
+          type: array
+          description: Uma célula por item comparado, na mesma ordem de `itens`.
+          items:
+            $ref: '#/components/schemas/CelulaComparacao'
+
+    ItemRemovidoDaComparacao:
+      type: object
+      required: [itemId, motivo, aviso]
+      properties:
+        itemId:
+          type: string
+          format: uuid
+        motivo:
+          $ref: '#/components/schemas/MotivoRemocaoComparacao'
+        aviso:
+          type: string
+          description: Texto pronto para a interface exibir.
+          examples:
+            - O Honda Civic EXL foi vendido e saiu da comparação.
+
+    Comparacao:
+      type: object
+      required: [comparacaoId, itens, linhas, itensRemovidos]
+      properties:
+        comparacaoId:
+          type: string
+          format: uuid
+        itens:
+          type: array
+          minItems: 2
+          maxItems: 4
+          items:
+            $ref: '#/components/schemas/ItemResumo'
+        linhas:
+          type: array
+          description: União dos atributos dos itens comparados, com `null` onde falta.
+          items:
+            $ref: '#/components/schemas/LinhaComparacao'
+        itensRemovidos:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItemRemovidoDaComparacao'
