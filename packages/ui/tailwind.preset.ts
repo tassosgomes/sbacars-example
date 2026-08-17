@@ -10,14 +10,22 @@ const preset: Partial<Config> = {
           500: 'var(--color-primary-500)',
           600: 'var(--color-primary-600)',
           700: 'var(--color-primary-700)',
-          DEFAULT: 'var(--color-primary-600)',
+          DEFAULT: 'var(--color-primary-500)',
           foreground: 'var(--color-primary-foreground)',
         },
         accent: {
           500: 'var(--color-accent-500)',
           600: 'var(--color-accent-600)',
-          DEFAULT: 'var(--color-accent-600)',
+          DEFAULT: 'var(--color-accent-500)',
           foreground: 'var(--color-accent-foreground)',
+        },
+        action: {
+          DEFAULT: 'var(--color-action-orange)',
+          hover: 'var(--color-action-orange-hover)',
+        },
+        trust: {
+          DEFAULT: 'var(--color-trust-green)',
+          light: 'var(--color-trust-green-light)',
         },
         neutral: {
           50: 'var(--color-neutral-50)',
@@ -33,11 +41,15 @@ const preset: Partial<Config> = {
           foreground: 'var(--color-neutral-foreground)',
         },
         background: 'var(--color-background)',
-        surface: 'var(--color-surface)',
+        surface: {
+          DEFAULT: 'var(--color-surface)',
+          container: 'var(--color-surface-container)',
+        },
         border: 'var(--color-border)',
         muted: 'var(--color-muted)',
         danger: {
           DEFAULT: 'var(--color-danger-500)',
+          600: 'var(--color-danger-600)',
           foreground: 'var(--color-danger-foreground)',
         },
       },

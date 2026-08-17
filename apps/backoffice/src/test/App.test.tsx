@@ -1,11 +1,11 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, screen } from '@testing-library/react';
 import { useAuth } from 'react-oidc-context';
-import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 
 import { AppRouter } from '@app/router';
 import { BackofficeLayout } from '@app/layouts/BackofficeLayout';
 import { LoginPage } from '@features/auth';
+import { renderWithProviders } from './test-utils';
 
 const mockedUseAuth = vi.mocked(useAuth);
 
@@ -29,22 +29,21 @@ describe('Backoffice app', () => {
       createAuthState({
         isAuthenticated: true,
         user: {
-          profile: { name: 'Ana Operação', preferred_username: 'ana' },
-        } as ReturnType<typeof useAuth>['user'],
+          profile: { name: 'Ana Operação', preferred_username: 'ana', scope: 'estoque:ler' },
+        } as unknown as ReturnType<typeof useAuth>['user'],
       }),
     );
 
-    render(<AppRouter />);
+    renderWithProviders(<AppRouter />, { withRouter: false });
 
     expect(screen.getByText('AutoTransparência')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: /dashboard/i })).toBeInTheDocument();
-    expect(screen.getByText(/dashboard metrics are not available yet/i)).toBeInTheDocument();
   });
 
   it('redirects unauthenticated users from protected routes to login', () => {
     mockedUseAuth.mockReturnValue(createAuthState());
 
-    render(<AppRouter />);
+    renderWithProviders(<AppRouter />, { withRouter: false });
 
     expect(screen.getByRole('heading', { name: /sign in/i })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: /dashboard/i })).not.toBeInTheDocument();
@@ -54,34 +53,30 @@ describe('Backoffice app', () => {
     const signinRedirect = vi.fn();
     mockedUseAuth.mockReturnValue(createAuthState({ signinRedirect }));
 
-    render(<LoginPage />);
+    renderWithProviders(<LoginPage />);
 
     await fireEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(signinRedirect).toHaveBeenCalledOnce();
   });
 
-  it('calls signoutRedirect when Sign out is clicked in the layout', async () => {
+  it('calls signoutRedirect when Sair is clicked in the layout', async () => {
     const signoutRedirect = vi.fn();
     mockedUseAuth.mockReturnValue(
       createAuthState({
         isAuthenticated: true,
         signoutRedirect,
         user: {
-          profile: { name: 'Bruno Estoque', preferred_username: 'bruno' },
-        } as ReturnType<typeof useAuth>['user'],
+          profile: { name: 'Bruno Estoque', preferred_username: 'bruno', scope: 'estoque:ler' },
+        } as unknown as ReturnType<typeof useAuth>['user'],
       }),
     );
 
-    render(
-      <MemoryRouter>
-        <BackofficeLayout />
-      </MemoryRouter>,
-    );
+    renderWithProviders(<BackofficeLayout />);
 
     expect(screen.getByText('Bruno Estoque')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /sign out/i }));
+    fireEvent.click(screen.getByRole('button', { name: /sair/i }));
 
     expect(signoutRedirect).toHaveBeenCalledOnce();
   });

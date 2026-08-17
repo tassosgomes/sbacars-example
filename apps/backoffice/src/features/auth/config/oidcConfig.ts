@@ -10,7 +10,13 @@ const API_RESOURCE = 'https://api.sbacars.app';
 // União de todos os scopes definidos para o resource acima (Fase 1, §5.4). O Logto só inclui no
 // access token os scopes que o papel do usuário autenticado realmente concede — pedir a união
 // inteira aqui é seguro e evita o frontend precisar saber "quem pode o quê".
-const API_SCOPES = ['estoque:gerenciar', 'estoque:ler', 'catalogo:gerenciar', 'atendimento:gerenciar'];
+const API_SCOPES = [
+  'estoque:gerenciar',
+  'estoque:ler',
+  'estoque:validar',
+  'catalogo:gerenciar',
+  'atendimento:gerenciar',
+];
 
 export function getOidcConfig(): UserManagerSettings {
   const origin = window.location.origin;
