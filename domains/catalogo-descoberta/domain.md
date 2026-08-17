@@ -59,15 +59,15 @@ Compradores de carros seminovos e usados enfrentam ofertas fragmentadas, informa
 
 | # | Feature | Descrição | Prioridade | Status | PRD |
 |---|---|---|---|---|---|
-| F01 | Publicação do catálogo e detalhe | Exibir itens elegíveis e permitir consultar a apresentação completa de cada veículo. | Must Have | `planned` | — |
-| F02 | Busca, filtros, ordenação e localização | Encontrar veículos por marca, modelo, ano, preço, quilometragem, carroceria, combustível, câmbio e localização, entre outros critérios. | Must Have | `planned` | — |
-| F03 | Apresentação transparente | Exibir fatos disponíveis, ficha técnica, materiais documentais e a indicação `Não informado` quando um dado não existir. | Must Have | `planned` | — |
-| F04 | Gestão de conteúdo comercial e mídia | Manter textos de venda, destaques, fotos de cliente, fotos técnicas e seleção de materiais autorizados do estoque. | Must Have | `planned` | — |
-| F05 | Status e preço do item | Mostrar preço oficial, localização e estados disponível, reservado ou vendido conforme D02. | Must Have | `planned` | — |
-| F06 | Favoritos | Permitir favoritar sem cadastro, com persistência no navegador, ou manter favoritos persistentes após cadastro. | Must Have | `planned` | — |
-| F07 | Comparação de veículos | Permitir selecionar de 2 a 4 veículos e comparar itens de série, valores e demais atributos disponíveis. | Must Have | `planned` | — |
-| F08 | Início de interesse | Encaminhar para D03 o contexto do veículo e da descoberta quando o comprador manifestar interesse. | Must Have | `planned` | — |
-| F09 | Preço promocional | Criar e apresentar uma condição promocional distinta do preço oficial de D02. | Should Have | `planned` | — |
+| F01 | Publicação do catálogo e detalhe | Exibir itens elegíveis e permitir consultar a apresentação completa de cada veículo. | Must Have | `prd-ready` | [PRD-A](../../tasks/prd-catalogo-publico-e-descoberta/prd.md) — RF-01 |
+| F02 | Busca, filtros, ordenação e localização | Encontrar veículos por marca, modelo, ano, preço, quilometragem, carroceria, combustível, câmbio e localização, entre outros critérios. | Must Have | `prd-ready` | [PRD-A](../../tasks/prd-catalogo-publico-e-descoberta/prd.md) — RF-02 |
+| F03 | Apresentação transparente | Exibir fatos disponíveis, ficha técnica, materiais documentais e a indicação `Não informado` quando um dado não existir. | Must Have | `prd-ready` | [PRD-A](../../tasks/prd-catalogo-publico-e-descoberta/prd.md) — RF-03 |
+| F04 | Gestão de conteúdo comercial e mídia | Manter textos de venda, destaques, fotos de cliente, fotos técnicas e seleção de materiais autorizados do estoque. | Must Have | `planned` | PRD-B (backoffice) — a criar |
+| F05 | Status e preço do item | Mostrar preço oficial, localização e estados disponível, reservado ou vendido conforme D02. | Must Have | `prd-ready` | [PRD-A](../../tasks/prd-catalogo-publico-e-descoberta/prd.md) — RF-04 |
+| F06 | Favoritos | Permitir favoritar sem cadastro, com persistência no navegador, ou manter favoritos persistentes após cadastro. | Must Have | `prd-ready` | [PRD-A](../../tasks/prd-catalogo-publico-e-descoberta/prd.md) — RF-06 |
+| F07 | Comparação de veículos | Permitir selecionar de 2 a 4 veículos e comparar itens de série, valores e demais atributos disponíveis. | Must Have | `prd-ready` | [PRD-A](../../tasks/prd-catalogo-publico-e-descoberta/prd.md) — RF-07 |
+| F08 | Início de interesse | Encaminhar para D03 o contexto do veículo e da descoberta quando o comprador manifestar interesse. | Must Have | `prd-ready` | [PRD-A](../../tasks/prd-catalogo-publico-e-descoberta/prd.md) — RF-05 |
+| F09 | Preço promocional | Criar e apresentar uma condição promocional distinta do preço oficial de D02. | Should Have | `planned` | PRD-B (backoffice) — a criar |
 
 **Prioridades (MoSCoW):** `Must Have` · `Should Have` · `Could Have` · `Won't Have`  
 **Status possíveis:** `planned` · `prd-ready` · `in-progress` · `done` · `out-of-scope`
@@ -153,12 +153,16 @@ Compradores de carros seminovos e usados enfrentam ofertas fragmentadas, informa
 
 ## 9. Questões em Aberto (Open Questions)
 
-- [ ] Como unir favoritos anônimos ao cadastro e qual será o prazo de retenção no navegador?
-- [ ] Quais são as regras de aprovação, vigência e encerramento de um preço promocional?
-- [ ] Quem autoriza e mantém a ficha técnica e a documentação apresentada ao comprador?
-- [ ] Quais estados adicionais de disponibilidade existem além de disponível, reservado e vendido?
-- [ ] Qual processo garante consentimento e moderação das fotos de cliente?
-- [ ] Qual granularidade de localização será exibida e filtrável: cidade, estado, região ou distância?
+- [x] Como unir favoritos anônimos ao cadastro? — **Resolvido:** não haverá cadastro de comprador na Fase 1 ([PD-002](../../docs/product-decisions/PD-002-sem-identidade-de-comprador-na-fase-1.md)). O prazo de retenção no navegador permanece em aberto no PRD-A.
+- [ ] Quais são as regras de aprovação, vigência e encerramento de um preço promocional? — pertence ao PRD-B.
+- [ ] Quem autoriza e mantém a ficha técnica e a documentação apresentada ao comprador? — pertence ao PRD-B.
+- [ ] Quais estados adicionais de disponibilidade existem além de disponível, reservado e vendido? — depende de D02.
+- [ ] Qual processo garante consentimento e moderação das fotos de cliente? — pertence ao PRD-B.
+- [x] Qual granularidade de localização será exibida e filtrável? — **Resolvido:** cidade/UF exibidos e distância a partir da localização de referência do comprador, obtida por geolocalização do navegador com escolha manual de cidade como alternativa (PRD-A, DP-03 e DP-04).
+
+> **Nota de fronteira (PRD-A, DP-05):** D01 entrega a D03 o contexto da descoberta e não coleta, exibe ou retém dado pessoal do comprador — ver [PD-001](../../docs/product-decisions/PD-001-dado-pessoal-do-comprador-pertence-a-d03.md). A RN-07 é cumprida apenas em seu ramo anônimo na Fase 1.
+>
+> **Dependência aberta em D02 (PRD-A, DP-07):** o filtro por carroceria previsto em F02 exige que D02 passe a fornecer esse atributo; a projeção `OfertaElegivel` atual não o contém.
 
 ---
 
