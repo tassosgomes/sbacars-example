@@ -9,5 +9,6 @@
          than owned by the data-access layer. The other three services' .Api projects reference
          BuildingBlocks.Messaging for the same reason; this comment is not repeated there. -->
     <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Messaging\SbaCars.BuildingBlocks.Messaging.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Storage\SbaCars.BuildingBlocks.Storage.csproj" />
   </ItemGroup>
 </Project>

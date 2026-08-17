@@ -25,9 +25,8 @@ builder.Services.AddSbaCarsHealthChecks()
     .AddSbaCarsPostgresReadinessCheck<InterestDbContext>(HealthCheckTags.Ready)
     .AddSbaCarsJwksReadinessCheck(HealthCheckTags.Ready)
     .AddSbaCarsRabbitMqReadinessCheck(HealthCheckTags.Ready);
-// S3/MinIO and Redis do not exist yet (Fases C and D6) — no health check for them here; adding
-// one that always fails would make /health/ready lie about what this service actually needs
-// today. RabbitMQ arrived in B1, above.
+// S3 exists (Fase C) but interest-service has no object-storage bucket (§7) — not wired here.
+// Redis does not exist yet (Fase D6) — no health check for it here.
 
 var app = builder.Build();
 

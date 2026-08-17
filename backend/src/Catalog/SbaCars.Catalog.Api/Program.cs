@@ -3,6 +3,8 @@ using SbaCars.BuildingBlocks.Messaging;
 using SbaCars.BuildingBlocks.Messaging.HealthChecks;
 using SbaCars.BuildingBlocks.Observability;
 using SbaCars.BuildingBlocks.Persistence.HealthChecks;
+using SbaCars.BuildingBlocks.Storage;
+using SbaCars.BuildingBlocks.Storage.HealthChecks;
 using SbaCars.BuildingBlocks.Web.Auditing;
 using SbaCars.BuildingBlocks.Web.Auth;
 using SbaCars.BuildingBlocks.Web.CorrelationId;
@@ -19,6 +21,7 @@ builder.Services.AddSbaCarsProblemDetails();
 builder.Services.AddSbaCarsOpenApi();
 builder.Services.AddSbaCarsAuth(builder.Configuration, builder.Environment);
 builder.Services.AddCatalogInfrastructure(builder.Configuration);
+builder.Services.AddSbaCarsStorage(builder.Configuration);
 builder.Services.AddSbaCarsObservability(builder.Configuration, "catalog-service");
 builder.Services.AddSbaCarsMessaging(builder.Configuration, "catalog-service", CatalogDbContext.Schema);
 // B5 scaffolding (§6.5) — delete with FoundationPingHandler when the first real catalog consumer exists.
@@ -30,10 +33,9 @@ builder.Services.AddSbaCarsRuntimeReadiness(builder.Configuration);
 builder.Services.AddSbaCarsHealthChecks()
     .AddSbaCarsPostgresReadinessCheck<CatalogDbContext>(HealthCheckTags.Ready)
     .AddSbaCarsJwksReadinessCheck(HealthCheckTags.Ready)
-    .AddSbaCarsRabbitMqReadinessCheck(HealthCheckTags.Ready);
-// S3/MinIO and Redis do not exist yet (Fases C and D6) — no health check for them here; adding
-// one that always fails would make /health/ready lie about what this service actually needs
-// today. RabbitMQ arrived in B1, above.
+    .AddSbaCarsRabbitMqReadinessCheck(HealthCheckTags.Ready)
+    .AddSbaCarsS3ReadinessCheck(HealthCheckTags.Ready);
+// Redis does not exist yet (Fase D6) — no health check for it here.
 
 var app = builder.Build();
 

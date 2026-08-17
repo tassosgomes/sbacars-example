@@ -95,6 +95,48 @@ services:
       timeout: 10s
       retries: 12
 
+  # C2 — MinIO como storage S3-compatível local (§7, §10): mesma abstração `IObjectStorage` /
+  # `AWSSDK.S3` que produção, só que sem TLS de propósito — a diferença para o S3 gerenciado é
+  # configuração (`Storage:ServiceUrl` / `ForcePathStyle`), não código. Credenciais `sbacars` /
+  # `sbacars_dev_pw` são só Development; em produção o storage é gerenciado com segredos do Swarm
+  # (§11.3). Volume porque objeto persistido perderia sentido se `docker compose down && up`
+  # apagasse tudo. Tag fixa (nunca `latest`) — a mesma de `SbaCarsMinioFixture` (C1).
+  minio:
+    image: minio/minio:RELEASE.2025-07-23T15-54-02Z
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: sbacars
+      MINIO_ROOT_PASSWORD: sbacars_dev_pw
+      # CORS global (§7): MinIO community não expõe PutBucketCors — só `cors_allow_origin` no
+      # subsistema `api` (ver minio/minio#20841). Produção usa S3 gerenciado com CORS por bucket
+      # (`spa-cors.xml`); local replica as mesmas origens via env, equivalente funcional para os SPAs.
+      MINIO_API_CORS_ALLOW_ORIGIN: "http://localhost:5173,http://localhost:5174"
+    ports:
+      - "9000:9000"      # API S3 (topologia §2.3)
+      - "9001:9001"      # console web (como rabbitmq :15672)
+    volumes:
+      - sbacars-minio-data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # C2 — buckets privados + CORS dos dois SPAs (§7): job idempotente após MinIO saudável — espelha
+  # `logto-db-init`. `mc` com tag RELEASE fixa (nunca `latest`), próxima à do servidor (jul/2025).
+  minio-init:
+    image: minio/mc:RELEASE.2025-07-21T05-28-08Z
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: sbacars
+      MINIO_ROOT_PASSWORD: sbacars_dev_pw
+    volumes:
+      - ./backend/docker/minio:/bootstrap:ro
+    entrypoint: ["/bin/bash", "/bootstrap/bootstrap.sh"]
+    restart: "no"
+
   # A8 — Aspire Dashboard como coletor OTLP local (§8, §10): traces, métricas e logs
   # correlacionados dos seis processos .NET e do OpenTelemetry Web dos dois SPAs num único lugar,
   # sem subir uma stack de observabilidade completa. Tag fixa (nunca `latest`, mesma disciplina do
@@ -131,3 +173,4 @@ services:
 volumes:
   sbacars-postgres-data:
   sbacars-rabbitmq-data:
+  sbacars-minio-data:

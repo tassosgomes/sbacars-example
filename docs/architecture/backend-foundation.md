@@ -1513,9 +1513,46 @@ negócio D04 e Fase C.
 
 | # | Entrega | Pronto quando | Status |
 |---|---|---|---|
-| C1 | `BuildingBlocks.Storage` + `IObjectStorage` sobre S3/MinIO | Teste de integração com MinIO em Testcontainers | ⬜ pendente |
-| C2 | Buckets, política privada, CORS, criação idempotente no compose | `docker compose up` deixa os buckets prontos | ⬜ pendente |
-| C3 | Endpoint de URL pré-assinada (upload e download) protegido por política | Upload direto do browser funciona; acesso anônimo ao bucket é negado | ⬜ pendente |
+| C1 | `BuildingBlocks.Storage` + `IObjectStorage` sobre S3/MinIO | Teste de integração com MinIO em Testcontainers | ✅ concluída |
+| C2 | Buckets, política privada, CORS, criação idempotente no compose | `docker compose up` deixa os buckets prontos | ✅ concluída |
+| C3 | Endpoint de URL pré-assinada (upload e download) protegido por política | Upload direto do browser funciona; acesso anônimo ao bucket é negado | ✅ concluída |
+
+**Estado em 2026-08-16 (C1):** `SbaCars.BuildingBlocks.Storage` com `AddSbaCarsStorage`,
+`StorageOptions` (`ValidateOnStart`), adaptador S3 (`S3ObjectStorage`) e health check de readiness
+`AddSbaCarsS3ReadinessCheck` (C3: `HeadBucket` em `StorageOptions.BucketName` — não mais
+`ListBucketsAsync`). Porta `IObjectStorage` +
+`ObjectStoragePresignedUrl` em `BuildingBlocks.Application`. Prova: `SbaCars.Storage.IntegrationTests`
+com `SbaCarsMinioFixture` (`minio/minio:RELEASE.2025-07-23T15-54-02Z`) — upload via URL
+pré-assinada PUT, download GET, GET anônimo negado, `DeleteAsync`, health `Healthy`.
+`StorageOptionsValidatorTests` e `StorageContainmentTests` cobrem validação e contenção. Deliberadamente
+fora: buckets/CORS no compose (C2), `Storage:` em `appsettings` e wiring nos quatro APIs/gateways (C3).
+
+**Estado em 2026-08-16 (C2):** `docker-compose.yml` com `minio`
+(`minio/minio:RELEASE.2025-07-23T15-54-02Z`, mesma tag de `SbaCarsMinioFixture`) e job
+`minio-init` (`minio/mc:RELEASE.2025-07-21T05-28-08Z`, `restart: "no"`, idempotente). Buckets
+`sbacars-catalog-media`, `sbacars-inventory-docs` e `sbacars-purchase-dossier` criados com
+`mc anonymous set none` e CORS restrito a `http://localhost:5173` e `http://localhost:5174`
+(`MINIO_API_CORS_ALLOW_ORIGIN` no serviço `minio`; política por bucket em
+`backend/docker/minio/spa-cors.xml` para S3 gerenciado — PutBucketCors não existe no MinIO community). Constantes em `ObjectStorageBuckets`. Prova:
+`docker compose up -d minio minio-init` (init exit 0), `mc ls` nos três buckets, GET anônimo em
+`http://localhost:9000/<bucket>/` retorna 403 (não 200), preflight OPTIONS com
+`Access-Control-Allow-Origin` para `:5173`/`:5174` (e negado para origem não listada), reexecução do init (exit 0, sem erro). Deliberadamente fora: ILM de 6 anos no volume local,
+`Storage:` em `appsettings`, wiring nos APIs e endpoints de URL pré-assinada (C3).
+
+**Estado em 2026-08-16 (C3):** `StorageOptions.BucketName` obrigatório por serviço; readiness S3 via
+`HeadBucket` no bucket configurado (least-privilege IAM). Wiring em `catalog-service`
+(`sbacars-catalog-media`, `catalogo:gerenciar` em upload e download), `inventory-service`
+(`sbacars-inventory-docs`, `estoque:gerenciar` upload / `estoque:ler` download) e
+`purchase-service` (`sbacars-purchase-dossier` — DI + health check only). **Não wired:**
+`interest-service` (sem bucket §7) e os dois gateways (S3 é concern do serviço, não da borda).
+Scaffolding `POST /api/_probe/storage/upload-url` e `download-url` em catalog e inventory —
+remover quando D01/D02 tiverem endpoints reais. Purchase **não** expõe probe de storage: o
+bucket de dossiê é dado sensível (§7) e não há `compra:gerenciar` na Fase 1; um probe só com
+`[Authorize]` permitiria a qualquer JWT do backoffice mintar URL de upload. Prova:
+`CatalogStorageProbeTests` em `SbaCars.Storage.IntegrationTests` (TestHost + `ProbeController`
+real + MinIO Testcontainers) — 401/403/round-trip PUT+GET/anônimo negado/`/health/ready` com
+`s3` Healthy. Deliberadamente fora: evidências D02, MIME/size/checksum, Interest storage,
+gateway storage, ILM 6 anos.
 
 ### Fase D — Deploy no Swarm
 

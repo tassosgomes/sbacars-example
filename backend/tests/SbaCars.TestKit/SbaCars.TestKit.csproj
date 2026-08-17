@@ -28,6 +28,8 @@
          Testcontainers.PostgreSql above; not the §3.3 "second consumer" rule (see the fixture's own
          remarks). -->
     <PackageReference Include="Testcontainers.RabbitMq" />
+    <!-- C1 — SbaCarsMinioFixture, same "fixtures Testcontainers" §3.1 justification as RabbitMq above. -->
+    <PackageReference Include="Testcontainers.Minio" />
     <!-- SbaCarsPostgresFixture implements Xunit.IAsyncLifetime, so this library needs the xunit
          package itself, not just the projects that consume it. Its own [CollectionDefinition]
          stays local to each consuming test assembly — see SbaCarsPostgresCollection's remarks in

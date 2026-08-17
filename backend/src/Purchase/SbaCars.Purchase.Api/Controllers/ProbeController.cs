@@ -10,6 +10,13 @@ namespace SbaCars.Purchase.Api.Controllers;
 /// this only requires an authenticated caller rather than a specific policy. No business rule
 /// here. Remove once purchase-service has a real protected endpoint.
 /// </summary>
+/// <remarks>
+/// C3 wires <c>AddSbaCarsStorage</c> and the S3 readiness check on this host (bucket
+/// <c>sbacars-purchase-dossier</c>) but deliberately does <b>not</b> expose a storage probe:
+/// §7 treats this bucket as sensitive personal data, and without <c>compra:gerenciar</c> a
+/// probe behind bare <c>[Authorize]</c> would let any authenticated backoffice token mint
+/// upload URLs. The dossier endpoints arrive with D04.
+/// </remarks>
 [ApiController]
 [Route("api/_probe")]
 public sealed class ProbeController(ICurrentUser currentUser) : ControllerBase
