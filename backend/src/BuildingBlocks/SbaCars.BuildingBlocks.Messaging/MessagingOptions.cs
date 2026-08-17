@@ -92,6 +92,21 @@ public sealed class MessagingOptions
     public int HeartbeatSeconds { get; set; } = 60;
 
     /// <summary>
+    /// How long processed inbox rows and sent outbox rows are retained before the purge job deletes
+    /// them (§6.3.2, B7). Must exceed the largest possible redelivery window; seven days is the
+    /// platform default.
+    /// </summary>
+    [Range(1, 365)]
+    public int RetentionDays { get; set; } = 7;
+
+    /// <summary>
+    /// How often the retention purge leader runs after the initial purge on lock acquisition
+    /// (§6.3.2, B7). Bound from configuration as a <see cref="TimeSpan"/> (e.g.
+    /// <c>Messaging:PurgeInterval</c> = <c>01:00:00</c>).
+    /// </summary>
+    public TimeSpan PurgeInterval { get; set; } = TimeSpan.FromHours(1);
+
+    /// <summary>
     /// <see cref="ErrorQueueName"/> when set, otherwise <c>{InputQueueName}.error</c> (§6.3). Reused
     /// by both <see cref="MessagingOptionsValidator"/> (rule 3) and
     /// <c>MessagingServiceCollectionExtensions.AddSbaCarsMessaging</c>, so the default-derivation

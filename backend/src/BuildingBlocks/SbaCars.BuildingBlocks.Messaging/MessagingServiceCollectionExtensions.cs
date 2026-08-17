@@ -12,10 +12,13 @@ using Rebus.Pipeline.Receive;
 using Rebus.Pipeline.Send;
 using Rebus.PostgreSql;
 using Rebus.Retry.Simple;
+using Rebus.Serialization.Json;
 using Rebus.Topic;
 using SbaCars.BuildingBlocks.Application;
 using SbaCars.BuildingBlocks.Messaging.CloudEvents;
 using SbaCars.BuildingBlocks.Messaging.Inbox;
+using SbaCars.BuildingBlocks.Messaging.Retention;
+using SbaCars.BuildingBlocks.Messaging.Sagas;
 using SbaCars.BuildingBlocks.Messaging.Topology;
 using SbaCars.BuildingBlocks.Messaging.Tracing;
 using SbaCars.BuildingBlocks.Persistence;
@@ -42,11 +45,12 @@ public static class MessagingServiceCollectionExtensions
     /// </param>
     /// <param name="outboxSchema">
     /// When set, enables Rebus's PostgreSQL outbox in this schema (<c>{outboxSchema}.outbox</c>,
-    /// §6.2) and the B3 inbox deduplication table (<c>{outboxSchema}.inbox_message</c>, §6.3).
-    /// Requires <see cref="PersistenceOptions"/> to be registered with a non-empty connection
-    /// string before this call. When <see langword="null"/>, messaging behaves like B1 — direct
-    /// publish with no outbox forwarder and no inbox step (so RabbitMQ-only integration tests need
-    /// no Postgres).
+    /// §6.2), the B3 inbox deduplication table (<c>{outboxSchema}.inbox_message</c>, §6.3), and
+    /// the B6 saga/timeout tables (<c>{outboxSchema}.sagas</c>, <c>{outboxSchema}.saga_index</c>,
+    /// <c>{outboxSchema}.timeouts</c>, §2.5). Requires <see cref="PersistenceOptions"/> to be
+    /// registered with a non-empty connection string before this call. When <see langword="null"/>,
+    /// messaging behaves like B1 — direct publish with no outbox forwarder, no inbox step, and
+    /// in-memory timeouts (so RabbitMQ-only integration tests need no Postgres).
     /// </param>
     public static IServiceCollection AddSbaCarsMessaging(
         this IServiceCollection services,
@@ -61,6 +65,22 @@ public static class MessagingServiceCollectionExtensions
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddSingleton<IValidateOptions<MessagingOptions>, MessagingOptionsValidator>();
+
+        if (outboxSchema is not null)
+        {
+            services.TryAddSingleton<IPostgresConnectionProvider>(sp =>
+            {
+                var persistence = sp.GetRequiredService<IOptions<PersistenceOptions>>().Value;
+                if (string.IsNullOrWhiteSpace(persistence.ConnectionString))
+                {
+                    throw new InvalidOperationException(
+                        "Outbox was requested (outboxSchema is set) but Persistence:ConnectionString is missing or empty. " +
+                        "Register persistence options before AddSbaCarsMessaging.");
+                }
+
+                return new PostgresConnectionHelper(persistence.ConnectionString);
+            });
+        }
 
         services.AddRebus((configure, provider) =>
         {
@@ -79,13 +99,30 @@ public static class MessagingServiceCollectionExtensions
 
                 persistenceConnectionString = persistence.ConnectionString;
 
-                configure = configure.Outbox(o =>
-                    o.StoreInPostgreSql(
-                        persistenceConnectionString,
-                        new TableName(outboxSchema, "outbox")));
+                var postgresProvider = provider.GetRequiredService<IPostgresConnectionProvider>();
+
+                configure = configure
+                    .Outbox(o =>
+                        o.StoreInPostgreSql(
+                            persistenceConnectionString,
+                            new TableName(outboxSchema, "outbox")))
+                    .Sagas(s =>
+                        s.StoreInPostgres(
+                            postgresProvider,
+                            "sagas",
+                            "saga_index",
+                            automaticallyCreateTables: false,
+                            schemaName: outboxSchema))
+                    .Timeouts(t =>
+                        t.StoreInPostgres(
+                            postgresProvider,
+                            "timeouts",
+                            automaticallyCreateTables: false,
+                            schemaName: outboxSchema));
             }
 
             return configure
+                .Serialization(s => s.UseSystemTextJson())
                 .Transport(t => t.UseRabbitMq(options.ConnectionString, options.InputQueueName)
                     // D3: a single topic exchange for pub/sub plus a single direct exchange for
                     // point-to-point, instead of §6.3's "exchange per event type" — see the remarks
@@ -178,6 +215,19 @@ public static class MessagingServiceCollectionExtensions
             // uses for this is internal to that package. Calling .Logging(...) here would only be
             // relevant to override that default, which B1 has no reason to do.
         });
+
+        if (outboxSchema is not null)
+        {
+            services.TryAddSingleton<ISagaTimeoutDeferral>(sp =>
+                new PostgreSqlSagaTimeoutDeferral(
+                    sp.GetRequiredService<IPostgresConnectionProvider>(),
+                    outboxSchema,
+                    sp.GetRequiredService<IOptions<MessagingOptions>>()));
+
+            services.AddSingleton(new MessagingOutboxSchema(outboxSchema));
+            services.AddSingleton<MessagingRetentionPurger>();
+            services.AddHostedService<MessagingRetentionPurgeHostedService>();
+        }
 
         services.AddTransient<IIntegrationEventPublisher, RebusIntegrationEventPublisher>();
 

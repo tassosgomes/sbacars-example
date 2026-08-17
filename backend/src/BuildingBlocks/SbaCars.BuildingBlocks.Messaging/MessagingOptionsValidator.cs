@@ -75,6 +75,12 @@ internal sealed class MessagingOptionsValidator : IValidateOptions<MessagingOpti
                 "ErrorQueueName.");
         }
 
+        if (options.PurgeInterval <= TimeSpan.Zero)
+        {
+            errors.Add(
+                $"{MessagingOptions.SectionName}:{nameof(MessagingOptions.PurgeInterval)} must be greater than zero.");
+        }
+
         return errors.Count == 0
             ? ValidateOptionsResult.Success
             : ValidateOptionsResult.Fail(errors);

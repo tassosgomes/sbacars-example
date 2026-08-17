@@ -158,6 +158,32 @@ public sealed class MessagingOptionsValidatorTests
         succeeded.Should().BeFalse();
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(366)]
+    public void RejectsRetentionDaysOutOfRange(int retentionDays)
+    {
+        var options = ValidOptions();
+        options.RetentionDays = retentionDays;
+
+        var (succeeded, _) = Validate(options);
+
+        succeeded.Should().BeFalse();
+    }
+
+    [Fact]
+    public void RejectsNonPositivePurgeInterval()
+    {
+        var options = ValidOptions();
+        options.PurgeInterval = TimeSpan.Zero;
+
+        var (succeeded, errors) = Validate(options);
+
+        succeeded.Should().BeFalse();
+        errors.Should().Contain(error =>
+            error.Contains(nameof(MessagingOptions.PurgeInterval), StringComparison.Ordinal));
+    }
+
     [Fact]
     public void MissingErrorQueueName_ResolvesToInputQueueNamePlusDotError()
     {

@@ -1273,8 +1273,8 @@ inbox/idempotência, `SbaCars.Contracts`, saga e timeout persistidos.
 | B3 | Inbox/idempotência própria (step de pipeline + tabela `inbox_message`) | Reentrega do mesmo `message_id` não duplica efeito — provado por teste | ✅ concluída |
 | B4 | `SbaCars.Contracts` com os eventos dos Domain Docs + snapshot de schema | Mudança breaking em contrato quebra o build | ✅ concluída |
 | B5 | Prova `foundation.ping` inventory → catalog | Teste de integração cobre outbox → broker → inbox, com trace correlacionado | ✅ concluída |
-| B6 | Saga e timeout persistidos no PostgreSQL habilitados e provados (capacidade exigida pela reserva de D04, §2.5) | Saga sobrevive a restart do processo e um timeout dispara depois de reinício — provado por teste | ⬜ pendente |
-| B7 | Job de expurgo de outbox/inbox (7 dias) com advisory lock | Com duas réplicas, o expurgo executa uma vez só — provado por teste | ⬜ pendente |
+| B6 | Saga e timeout persistidos no PostgreSQL habilitados e provados (capacidade exigida pela reserva de D04, §2.5) | Saga sobrevive a restart do processo e um timeout dispara depois de reinício — provado por teste | ✅ concluída |
+| B7 | Job de expurgo de outbox/inbox (7 dias) com advisory lock | Com duas réplicas, o expurgo executa uma vez só — provado por teste | ✅ concluída |
 
 **Estado em 2026-08-16:** B1 entregue e verificada. 40 projetos, 182 testes passando no backend
 (`dotnet build` e `dotnet format` limpos); os quatro serviços sobem com bus, declaram a topologia e
@@ -1452,6 +1452,62 @@ distinta usa o mesmo `FoundationPingHandler` da API; handler roda uma vez; linha
 `TraceId`/`SpanId` do span `foundation.ping publish` do exporter in-memory do inventory.
 Deliberadamente fora: B6–B7 (saga/timeout, expurgo de 7 dias) e publicadores de negócio
 dos Domain Docs.
+
+**Estado em 2026-08-16 (B6):** saga e timeout persistidos no PostgreSQL entregues e
+verificados. Habilitados pelo mesmo `outboxSchema` passado a `AddSbaCarsMessaging` — quando
+omitido, o comportamento permanece o de B1 (timeouts em memória; testes só-RabbitMQ continuam
+sem Postgres). As tabelas `{schema}.sagas`, `{schema}.saga_index` e `{schema}.timeouts` são
+criadas pelas migrations (`own_*`, DDL com identificadores entre aspas exatamente como o
+`Rebus.PostgreSql` 9.1.1 espera); o runtime com `svc_*` encontra as tabelas já existentes e
+`automaticallyCreateTables: false` impede DDL no boot da API.
+
+`AddSbaCarsMessaging` registra `Sagas(s => s.StoreInPostgres(...))` e
+`Timeouts(t => t.StoreInPostgres(...))` via `PostgresConnectionHelper` + `schemaName:
+outboxSchema`, reutilizando `Persistence:ConnectionString`. Sagas que precisam agendar
+timeout com outbox ativo usam `ISagaTimeoutDeferral` (grava direto em
+`{schema}.timeouts`, sem passar pelo transporte com outbox — `IBus.DeferLocal` falha
+dentro da transação de recebimento). Subscription storage em PostgreSQL e saga
+snapshot/audit **não** são habilitados — RabbitMQ permanece o mecanismo de assinatura;
+a persistência B6 é só saga data + índice + timeouts (sem conexão AMQP extra; orçamento §6.3.1
+inalterado).
+
+Prova de prontidão: `SagaTimeoutPersistenceTests` (Postgres + RabbitMQ reais) — saga probe
+test-only no projeto de integração (não em Contracts nem nos serviços); host 1 trata
+`StartSagaTimeoutProbe`, persiste saga/timeout com `Defer` de 8s e é descartado; linhas
+permanecem em `inventory.sagas` e `inventory.timeouts`; host 2 na mesma fila de input dispara
+o timeout após restart (`SagaTimeoutReceipt`). `SagaSchemaTests` confirma
+`inventory.sagas`/`saga_index`/`timeouts` e que `svc_catalog` não lê o schema alheio.
+Testes B1/B2/B3/B5 seguem verdes (saga/timeout opt-in com schema). Deliberadamente fora: B7
+(expurgo de 7 dias) e a saga de negócio da reserva D04.
+
+**Estado em 2026-08-16 (B7):** job de expurgo de outbox/inbox com retenção de 7 dias entregue e
+verificado. Habilitado pelo mesmo `outboxSchema` passado a `AddSbaCarsMessaging` — quando omitido,
+nenhum `IHostedService` de expurgo é registrado (B1 permanece só RabbitMQ). A coluna
+`"created_at" TIMESTAMPTZ NOT NULL DEFAULT now()` foi adicionada a `{schema}.outbox` pela migration
+`20260816230000_AddOutboxCreatedAtForRetention` nos quatro serviços (Rebus não escreve a coluna;
+o `DEFAULT` carimba inserts). Índices parciais em `outbox ("created_at") WHERE "Sent" = TRUE` e em
+`inbox_message (processed_at)` aceleram o `DELETE` de retenção.
+
+`MessagingOptions` expõe `RetentionDays` (padrão 7, faixa 1–365) e `PurgeInterval` (padrão 1 hora,
+`Messaging:PurgeInterval`). O expurgo remove apenas `inbox_message` com `processed_at` anterior à
+retenção e linhas de `outbox` com `"Sent" = TRUE` e `"created_at"` anterior à retenção — linhas
+não enviadas (`"Sent" = FALSE`) nunca são apagadas. Sagas, `saga_index` e `timeouts` ficam fora do
+escopo (processos longos em voo).
+
+`MessagingRetentionPurgeHostedService` (`BackgroundService`) usa `Persistence:ConnectionString`,
+elege líder por réplica com `pg_try_advisory_lock(hashtext('sbacars.messaging.purge'),
+hashtext(schema))` numa conexão Npgsql dedicada mantida aberta enquanto a réplica é líder; a
+não-líder reintenta a cada 5 s. O líder expurga imediatamente ao adquirir o lock e depois no
+`PurgeInterval`. Métricas em `SbaCars.Messaging`: `messaging.purge.cycles` e
+`messaging.purge.rows_deleted` (tag `table=inbox|outbox`). Sem Redis, sem cron externo, sem
+conexão AMQP extra (orçamento §6.3.1 inalterado).
+
+Prova de prontidão: `OutboxInboxPurgeTests.TwoReplicas_ExactlyOnePurgeCycle_DeletesOnlyExpiredRows`
+— duas `MessagingTestHost` no mesmo Postgres/schema `inventory`, filas de input distintas, linhas
+com 8 dias de idade e retenção padrão de 7 dias; `messaging.purge.cycles == 1`, linhas expiradas
+removidas, linhas frescas/unsent preservadas. `MessagingOptionsValidatorTests` cobre
+`RetentionDays` e `PurgeInterval`. Testes B1–B6 seguem verdes. Deliberadamente fora: saga de
+negócio D04 e Fase C.
 
 ### Fase C — Storage
 

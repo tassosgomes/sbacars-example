@@ -3,7 +3,7 @@ using System.Diagnostics.Metrics;
 namespace SbaCars.BuildingBlocks.Messaging.Inbox;
 
 /// <summary>
-/// The single <see cref="Meter"/> the inbox deduplication step records on (§6.3). <see cref="Name"/>
+/// The single <see cref="Meter"/> messaging records on (§6.3, §6.3.2). <see cref="Name"/>
 /// is public and <see langword="const"/> because it is needed in two independent places that must
 /// agree on the exact same string: the <c>AddMeter(MessagingMeters.Name)</c> call
 /// <c>MessagingServiceCollectionExtensions.AddSbaCarsMessaging</c> makes against the host's
@@ -25,4 +25,20 @@ public static class MessagingMeters
         Meter.CreateCounter<long>(
             "messaging.inbox.duplicates_discarded",
             description: "Incoming messages discarded because (message_id, consumer) was already processed.");
+
+    /// <summary>
+    /// Incremented once per completed retention purge cycle on the advisory-lock leader (§6.3.2, B7).
+    /// </summary>
+    public static readonly Counter<long> PurgeCycles =
+        Meter.CreateCounter<long>(
+            "messaging.purge.cycles",
+            description: "Completed outbox/inbox retention purge cycles on the lock leader.");
+
+    /// <summary>
+    /// Rows removed by the retention purge job, tagged with <c>table=inbox|outbox</c> (§6.3.2, B7).
+    /// </summary>
+    public static readonly Counter<long> PurgeRowsDeleted =
+        Meter.CreateCounter<long>(
+            "messaging.purge.rows_deleted",
+            description: "Rows deleted by the outbox/inbox retention purge job.");
 }
