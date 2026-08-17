@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <!-- C1 — S3-compatible object storage (§7): presigned URLs via AWSSDK.S3 against S3 or MinIO. -->
+    <PackageReference Include="AWSSDK.S3" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.HealthChecks" />
+    <PackageReference Include="Microsoft.Extensions.Options" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
+    <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="SbaCars.BuildingBlocks.Storage.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\SbaCars.BuildingBlocks.Application\SbaCars.BuildingBlocks.Application.csproj" />
+  </ItemGroup>
+
+</Project>

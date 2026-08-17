@@ -2,6 +2,8 @@ using SbaCars.BuildingBlocks.Messaging;
 using SbaCars.BuildingBlocks.Messaging.HealthChecks;
 using SbaCars.BuildingBlocks.Observability;
 using SbaCars.BuildingBlocks.Persistence.HealthChecks;
+using SbaCars.BuildingBlocks.Storage;
+using SbaCars.BuildingBlocks.Storage.HealthChecks;
 using SbaCars.BuildingBlocks.Web.Auditing;
 using SbaCars.BuildingBlocks.Web.Auth;
 using SbaCars.BuildingBlocks.Web.CorrelationId;
@@ -17,6 +19,9 @@ builder.Services.AddSbaCarsProblemDetails();
 builder.Services.AddSbaCarsOpenApi();
 builder.Services.AddSbaCarsAuth(builder.Configuration, builder.Environment);
 builder.Services.AddPurchaseInfrastructure(builder.Configuration);
+// C3: dossier bucket is provisioned and probed via /health/ready (HeadBucket). No HTTP
+// storage probe — sbacars-purchase-dossier is sensitive (§7) and compra:gerenciar is Fase 2.
+builder.Services.AddSbaCarsStorage(builder.Configuration);
 builder.Services.AddSbaCarsObservability(builder.Configuration, "purchase-service");
 builder.Services.AddSbaCarsMessaging(builder.Configuration, "purchase-service", PurchaseDbContext.Schema);
 builder.Services.AddSbaCarsForwardedHeaders();
@@ -24,10 +29,9 @@ builder.Services.AddSbaCarsRuntimeReadiness(builder.Configuration);
 builder.Services.AddSbaCarsHealthChecks()
     .AddSbaCarsPostgresReadinessCheck<PurchaseDbContext>(HealthCheckTags.Ready)
     .AddSbaCarsJwksReadinessCheck(HealthCheckTags.Ready)
-    .AddSbaCarsRabbitMqReadinessCheck(HealthCheckTags.Ready);
-// S3/MinIO and Redis do not exist yet (Fases C and D6) — no health check for them here; adding
-// one that always fails would make /health/ready lie about what this service actually needs
-// today. RabbitMQ arrived in B1, above.
+    .AddSbaCarsRabbitMqReadinessCheck(HealthCheckTags.Ready)
+    .AddSbaCarsS3ReadinessCheck(HealthCheckTags.Ready);
+// Redis does not exist yet (Fase D6) — no health check for it here.
 
 var app = builder.Build();
 

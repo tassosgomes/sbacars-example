@@ -28,7 +28,8 @@ builder.Services.AddSbaCarsRuntimeReadiness(builder.Configuration);
 // SbaCars.BuildingBlocks.Web.RateLimiting.RateLimitingExtensions.GetClientIdentifier for why that
 // is a Fase D concern, not this one.
 builder.Services.AddSbaCarsGatewayHealthChecks();
-// RabbitMQ, S3/MinIO and Redis do not exist yet (Fases B, C and D6) — nothing to check for them.
+// Redis does not exist yet (Fase D6). RabbitMQ and S3 are service concerns — gateways never
+// reach BuildingBlocks.Messaging or BuildingBlocks.Storage (§6.3.1, §7).
 
 var app = builder.Build();
 
