@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <IsPackable>false</IsPackable>
+    <IsTestProject>true</IsTestProject>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="xunit" />
+    <PackageReference Include="xunit.runner.visualstudio">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="AwesomeAssertions" />
+    <PackageReference Include="OpenTelemetry.Exporter.InMemory" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="Rebus.ServiceProvider" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Application\SbaCars.BuildingBlocks.Application.csproj" />
+    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Persistence\SbaCars.BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Storage\SbaCars.BuildingBlocks.Storage.csproj" />
+    <ProjectReference Include="..\..\src\BuildingBlocks\SbaCars.BuildingBlocks.Messaging\SbaCars.BuildingBlocks.Messaging.csproj" />
+    <ProjectReference Include="..\..\src\Inventory\SbaCars.Inventory.Application\SbaCars.Inventory.Application.csproj" />
+    <ProjectReference Include="..\..\src\Inventory\SbaCars.Inventory.Domain\SbaCars.Inventory.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Inventory\SbaCars.Inventory.Infrastructure\SbaCars.Inventory.Infrastructure.csproj" />
+    <ProjectReference Include="..\SbaCars.TestKit\SbaCars.TestKit.csproj" />
+  </ItemGroup>
+
+</Project>

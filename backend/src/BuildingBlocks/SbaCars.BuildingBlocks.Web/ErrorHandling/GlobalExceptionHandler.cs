@@ -27,7 +27,11 @@ public sealed class GlobalExceptionHandler(
         Exception exception,
         CancellationToken cancellationToken)
     {
-        var isMapped = exceptionMap.TryResolve(exception, out var statusCode, out var title);
+        var isMapped = exceptionMap.TryResolveDetails(
+            exception,
+            out var statusCode,
+            out var title,
+            out var configureProblemDetails);
         if (!isMapped)
         {
             statusCode = StatusCodes.Status500InternalServerError;
@@ -59,6 +63,7 @@ public sealed class GlobalExceptionHandler(
             Instance = httpContext.Request.Path,
         };
         problemDetails.Extensions["traceId"] = traceId;
+        configureProblemDetails?.Invoke(exception, problemDetails);
 
         return await problemDetailsService.TryWriteAsync(new ProblemDetailsContext
         {
