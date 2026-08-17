@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Mvc;
+
 namespace SbaCars.BuildingBlocks.Web.ErrorHandling;
 
 /// <summary>
@@ -15,7 +17,7 @@ namespace SbaCars.BuildingBlocks.Web.ErrorHandling;
 /// </remarks>
 public sealed class ExceptionProblemDetailsMap
 {
-    private readonly Dictionary<Type, (int StatusCode, string Title)> _mappings = [];
+    private readonly Dictionary<Type, Mapping> _mappings = [];
 
     /// <summary>
     /// Registers (or replaces) the status code and title used when the handled exception is, or
@@ -24,8 +26,26 @@ public sealed class ExceptionProblemDetailsMap
     public ExceptionProblemDetailsMap Map<TException>(int statusCode, string title)
         where TException : Exception
     {
+        return Map<TException>(statusCode, title, null);
+    }
+
+    /// <summary>
+    /// Registers a mapping and an optional sanitizer that adds safe, typed extensions to the
+    /// RFC 9457 response. The callback is kept in the host's composition root so the shared
+    /// building block never references a service-specific exception.
+    /// </summary>
+    public ExceptionProblemDetailsMap Map<TException>(
+        int statusCode,
+        string title,
+        Action<TException, ProblemDetails>? configureProblemDetails)
+        where TException : Exception
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(title);
-        _mappings[typeof(TException)] = (statusCode, title);
+        Action<Exception, ProblemDetails>? configure = configureProblemDetails is null
+            ? null
+            : (exception, problemDetails) => configureProblemDetails((TException)exception, problemDetails);
+
+        _mappings[typeof(TException)] = new Mapping(statusCode, title, configure);
         return this;
     }
 
@@ -33,6 +53,17 @@ public sealed class ExceptionProblemDetailsMap
     /// Resolves the most specific registered mapping for <paramref name="exception"/>, if any.
     /// </summary>
     public bool TryResolve(Exception exception, out int statusCode, out string title)
+    {
+        var resolved = TryResolveDetails(exception, out statusCode, out title, out _);
+        return resolved;
+    }
+
+    /// <summary>Resolves a mapping and its optional safe response extension callback.</summary>
+    public bool TryResolveDetails(
+        Exception exception,
+        out int statusCode,
+        out string title,
+        out Action<Exception, ProblemDetails>? configureProblemDetails)
     {
         ArgumentNullException.ThrowIfNull(exception);
 
@@ -42,12 +73,19 @@ public sealed class ExceptionProblemDetailsMap
             {
                 statusCode = mapping.StatusCode;
                 title = mapping.Title;
+                configureProblemDetails = mapping.ConfigureProblemDetails;
                 return true;
             }
         }
 
         statusCode = 0;
         title = string.Empty;
+        configureProblemDetails = null;
         return false;
     }
+
+    private sealed record Mapping(
+        int StatusCode,
+        string Title,
+        Action<Exception, ProblemDetails>? ConfigureProblemDetails);
 }

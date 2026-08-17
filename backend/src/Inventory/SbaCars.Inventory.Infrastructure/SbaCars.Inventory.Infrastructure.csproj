@@ -1,7 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\SbaCars.Inventory.Domain\SbaCars.Inventory.Domain.csproj" />
+    <ProjectReference Include="..\SbaCars.Inventory.Application\SbaCars.Inventory.Application.csproj" />
     <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Persistence\SbaCars.BuildingBlocks.Persistence.csproj" />
+    <ProjectReference Include="..\..\BuildingBlocks\SbaCars.BuildingBlocks.Storage\SbaCars.BuildingBlocks.Storage.csproj" />
   </ItemGroup>
   <ItemGroup>
     <!-- Design-time only: used by "dotnet ef migrations add" via InventoryDbContextFactory.
